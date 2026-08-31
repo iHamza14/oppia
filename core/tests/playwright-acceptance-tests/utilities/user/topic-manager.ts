@@ -705,16 +705,8 @@ export class TopicManager extends BaseUser {
    */
   async createTopic(name: string, urlFragment: string): Promise<string> {
     await this.navigateToTopicsAndSkillsDashboardPageAsTopicManager();
-    let TopicSelectorElement = null;
-    try {
-      TopicSelectorElement = await this.expectElementToBeAttachedInDOM(
-        desktopTopicSelector,
-        this.page,
-        10000
-      );
-    } catch {
-      // Element didn't appear in 10 seconds — treat as not present.
-    }
+    await this.expectElementToBeAttachedInDOM(createNewTopicButton);
+    const TopicSelectorElement = await this.page.$(desktopTopicSelector);
 
     if (!TopicSelectorElement || !this.isViewportAtMobileWidth()) {
       await this.clickOnElementWithSelector(createNewTopicButton);
