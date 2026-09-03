@@ -155,6 +155,8 @@ export default {
     COLLECTION_EDITOR: 'collection editor',
     TRANSLATION_REVIEWER: 'translation reviewer',
     VOICEOVER_SUBMITTER: 'voiceover submitter',
+    PRACTICE_QUESTION_SUBMITTER: 'practice question submitter',
+    PRACTICE_QUESTION_REVIEWER: 'practice question reviewer',
   } as const,
 
   ViewportWidthBreakpoints: {

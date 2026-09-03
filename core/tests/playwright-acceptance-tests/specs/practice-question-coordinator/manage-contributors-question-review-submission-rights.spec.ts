@@ -19,6 +19,7 @@
  * QC.1. Manage contributors' question review/submission rights.
  */
 
+import {test} from '@playwright/test';
 import testConstants from '../../utilities/common/test-constants';
 import {UserFactory} from '../../utilities/common/user-factory';
 import {Contributor} from '../../utilities/user/contributor';
@@ -33,7 +34,12 @@ import {ReleaseCoordinator} from '../../utilities/user/release-coordinator';
 
 const ROLES = testConstants.Roles;
 
-describe('Practice Question Coordinator', function () {
+test.describe('Practice Question Coordinator', function () {
+  test.skip(
+    () => process.env.MOBILE === 'true',
+    'Contributor Admin Dashboard is not supported on mobile'
+  );
+
   let questionCoordinator: QuestionCoordinator & ContributorAdmin;
   let questionReviewer: PracticeQuestionReviewer & LoggedInUser;
   let questionSubmitter: ExplorationEditor &
@@ -43,27 +49,33 @@ describe('Practice Question Coordinator', function () {
     LoggedInUser;
   let releaseCoordinator: ReleaseCoordinator;
 
-  beforeAll(async function () {
+  test.beforeAll(async function ({browser}) {
+    if (process.env.MOBILE === 'true') return;
+
     questionCoordinator = await UserFactory.createNewUser(
       'questionCoordinator',
       'questionCoordinator@example.com',
+      browser,
       [ROLES.QUESTION_COORDINATOR]
     );
 
     releaseCoordinator = await UserFactory.createNewUser(
       'releaseCoordinator',
       'releaseCoordinator@example.com',
+      browser,
       [ROLES.RELEASE_COORDINATOR]
     );
 
     questionReviewer = await UserFactory.createNewUser(
       'questionReviewer',
-      'questionReviewer@example.com'
+      'questionReviewer@example.com',
+      browser
     );
 
     questionSubmitter = await UserFactory.createNewUser(
       'questionSubmitter',
       'questionSubmitter@example.com',
+      browser,
       [ROLES.CURRICULUM_ADMIN]
     );
 
@@ -83,9 +95,9 @@ describe('Practice Question Coordinator', function () {
     );
 
     await questionSubmitter.navigateToCreatorDashboardPage();
-  }, 900000);
+  });
 
-  it('should be able to add question review rights for a user', async function () {
+  test('should be able to add question review rights for a user', async function () {
     // Navigate to the contributor dashboard admin page.
     await questionCoordinator.navigateToContributorDashboardAdminPage();
 
@@ -107,16 +119,17 @@ describe('Practice Question Coordinator', function () {
     await questionCoordinator.expectTotalQuestionReviewersToBe(1);
   });
 
-  it('should be able to add question submitter rights for a user', async function () {
-    // Add question submitter rights.
+  test('should be able to add question submitter rights for a user', async function () {
+    await questionCoordinator.navigateToContributorDashboardAdminPage();
+    await questionCoordinator.switchToTabInContributorAdminPage(
+      'Question Submitters'
+    );
+
     await questionCoordinator.clickOnAddReviewerOrSubmitterButton();
     await questionCoordinator.addUsernameInUsernameInputModal(
       questionSubmitter.username ?? ''
     );
-    await questionCoordinator.expectScreenshotToMatch(
-      'addQuestionRightsModal',
-      __dirname
-    );
+    await questionCoordinator.expectScreenshotToMatch('addQuestionRightsModal');
 
     await questionCoordinator.addOrRemoveQuestionRightsInQuestionRoleEditorModal(
       'Submitter'
@@ -124,7 +137,7 @@ describe('Practice Question Coordinator', function () {
     await questionCoordinator.saveAndCloseQuestionRoleEditorModal();
 
     // Submit a question as question submitter.
-    await questionSubmitter.navigateToContributorDashboardUsingProfileDropdown();
+    await questionSubmitter.goto(testConstants.URLs.ContributorDashboard);
     await questionSubmitter.startAndCompleteQuestionSuggestion(
       'Addition',
       'Arithmetic Operations',
@@ -132,7 +145,7 @@ describe('Practice Question Coordinator', function () {
     );
 
     // Review and accept the submitted question as question reviewer.
-    await questionReviewer.navigateToContributorDashboardUsingProfileDropdown();
+    await questionReviewer.goto(testConstants.URLs.ContributorDashboard);
     await questionReviewer.startQuestionReview('What is 2 + 3?', 'Addition');
     await questionReviewer.submitReview('accept');
     await questionReviewer.expectQuestionReviewModalToBePresent(false);
@@ -150,14 +163,18 @@ describe('Practice Question Coordinator', function () {
     await questionCoordinator.expectNumberOfStatsRowsToBe(1);
   });
 
-  it('should be able to remove question submitter rights for a user', async function () {
+  test('should be able to remove question submitter rights for a user', async function () {
+    await questionCoordinator.navigateToContributorDashboardAdminPage();
+    await questionCoordinator.switchToTabInContributorAdminPage(
+      'Question Submitters'
+    );
+
     await questionCoordinator.clickOnAddReviewerOrSubmitterButton();
     await questionCoordinator.addUsernameInUsernameInputModal(
       questionSubmitter.username ?? ''
     );
     await questionCoordinator.expectScreenshotToMatch(
-      'editQuestionRightsModalWithSubmitterChecked',
-      __dirname
+      'editQuestionRightsModalWithSubmitterChecked'
     );
 
     await questionCoordinator.addOrRemoveQuestionRightsInQuestionRoleEditorModal(
@@ -167,14 +184,18 @@ describe('Practice Question Coordinator', function () {
     await questionCoordinator.saveAndCloseQuestionRoleEditorModal();
   });
 
-  it('should be able to remove question review rights for a user', async function () {
+  test('should be able to remove question review rights for a user', async function () {
+    await questionCoordinator.navigateToContributorDashboardAdminPage();
+    await questionCoordinator.switchToTabInContributorAdminPage(
+      'Question Reviewers'
+    );
+
     await questionCoordinator.clickOnAddReviewerOrSubmitterButton();
     await questionCoordinator.addUsernameInUsernameInputModal(
       questionReviewer.username ?? ''
     );
     await questionCoordinator.expectScreenshotToMatch(
-      'editQuestionRightsModalWithReviewerChecked',
-      __dirname
+      'editQuestionRightsModalWithReviewerChecked'
     );
 
     await questionCoordinator.addOrRemoveQuestionRightsInQuestionRoleEditorModal(
@@ -187,7 +208,7 @@ describe('Practice Question Coordinator', function () {
     await questionCoordinator.expectTotalQuestionReviewersToBe(0);
   });
 
-  it('should show the Question Coordinators tab with stats', async function () {
+  test('should show the Question Coordinators tab with stats', async function () {
     await questionCoordinator.navigateToContributorDashboardAdminPage();
     await questionCoordinator.switchToTabInContributorAdminPage(
       'Question Coordinators'
@@ -195,7 +216,8 @@ describe('Practice Question Coordinator', function () {
     await questionCoordinator.expectStatsTableToBeVisible();
   });
 
-  afterAll(async function () {
+  test.afterAll(async function () {
+    if (process.env.MOBILE === 'true') return;
     await UserFactory.closeAllBrowsers();
   });
 });

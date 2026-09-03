@@ -77,20 +77,22 @@ export class ReleaseCoordinator extends BaseUser {
             enableFeatureSelector,
             featureFlags[i]
           );
-          await selectElement.selectOption(enable ? '0: true' : '1: false');
 
+          const targetValue = enable ? '0: true' : '1: false';
+          const currentValue = await selectElement.evaluate(
+            (el: HTMLSelectElement) => el.value
+          );
+          if (currentValue === targetValue) {
+            return;
+          }
+          await selectElement.selectOption(targetValue);
           const saveButton = await this.getElementInParent(
             saveButtonSelector,
             featureFlags[i]
           );
           await this.clickOnElement(saveButton);
-
           await this.expectElementToBeVisible(
             `${saveButtonSelector}[disabled]`
-          );
-
-          showMessage(
-            `Feature flag: "${featureName}" has been enabled successfully.`
           );
           return;
         }

@@ -36,6 +36,23 @@ import {
 } from '../user/curriculum-admin';
 import {ReleaseCoordinatorFactory} from '../user/release-coordinator';
 import {TopicManager, TopicManagerFactory} from '../user/topic-manager';
+import {
+  ContributorAdmin,
+  ContributorAdminFactory,
+} from '../user/contributor-admin';
+import {Contributor, ContributorFactory} from '../user/contributor';
+import {
+  PracticeQuestionReviewer,
+  PracticeQuestionReviewerFactory,
+} from '../user/practice-question-reviewer';
+import {
+  PracticeQuestionSubmitter,
+  QuestionSubmitterFactory,
+} from '../user/practice-question-submitter';
+import {
+  QuestionCoordinator,
+  QuestionCoordinatorFactory,
+} from '../user/practice-question-coordinator';
 
 const ROLES = testConstants.Roles;
 const cookieBannerAcceptButton =
@@ -52,12 +69,15 @@ const USER_ROLE_MAPPING = {
   [ROLES.RELEASE_COORDINATOR]: ReleaseCoordinatorFactory,
   [ROLES.TOPIC_MANAGER]: TopicManagerFactory,
   [ROLES.VOICEOVER_ADMIN]: VoiceoverAdminFactory,
+  [ROLES.QUESTION_COORDINATOR]: QuestionCoordinatorFactory,
 } as const;
 
 // Roles that are not reflected on the admin page after assignment.
 const USERS_ROLES_NOT_REFLECTED_IN_ADMIN_PAGE: string[] = [
   ROLES.TRANSLATION_REVIEWER,
   ROLES.VOICEOVER_SUBMITTER,
+  ROLES.PRACTICE_QUESTION_SUBMITTER,
+  ROLES.PRACTICE_QUESTION_REVIEWER,
 ];
 
 /**
@@ -81,7 +101,12 @@ type BasicRolesUser = LoggedOutUser &
   LoggedInUser &
   ExplorationEditor &
   CurriculumAdmin &
-  TopicManager;
+  TopicManager &
+  Contributor &
+  ContributorAdmin &
+  QuestionCoordinator &
+  PracticeQuestionReviewer &
+  PracticeQuestionSubmitter;
 
 /**
  * Global user instances that are created and can be reused again.
@@ -225,6 +250,11 @@ export class UserFactory {
       ExplorationEditorFactory(page),
       CurriculumAdminFactory(page),
       TopicManagerFactory(page),
+      ContributorFactory(page),
+      ContributorAdminFactory(page),
+      QuestionCoordinatorFactory(page),
+      PracticeQuestionReviewerFactory(page),
+      QuestionSubmitterFactory(page),
     ]);
 
     user.username = username;
