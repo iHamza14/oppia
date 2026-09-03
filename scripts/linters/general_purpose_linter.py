@@ -390,7 +390,14 @@ def check_bad_pattern_in_file(
                 stripped_line = line
             if stripped_line.endswith('disable-bad-pattern-check'):
                 continue
-            if regexp.search(stripped_line):
+            # Remove string literals to avoid false positives for TODOs in strings.
+            line_without_strings = re.sub(
+                r'("[^"\\]*(?:\\.[^"\\]*)*")|(\'[^\'\\]*(?:\\.[^\'\\]*)*\')|(`[^`\\]*(?:\\.[^`\\]*)*`)',
+                '',
+                stripped_line,
+            )
+
+            if regexp.search(line_without_strings):
                 error_message = '%s --> Line %s: %s' % (
                     filepath,
                     line_num,
