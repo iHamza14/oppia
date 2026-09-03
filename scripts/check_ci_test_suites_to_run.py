@@ -117,7 +117,7 @@ TEST_MODULES_MAPPING_DIRECTORY: Final = os.path.join(
     'core', 'tests', 'test-modules-mappings'
 )
 
-LIGHTHOUSE_PAGES_PER_SHARD: Final = 12
+LIGHTHOUSE_PAGES_PER_SHARD: Final = 8
 LIGHTHOUSE_MODULES: Final = (
     '.lighthouserc.js',
     '.lighthouserc-desktop.js',
