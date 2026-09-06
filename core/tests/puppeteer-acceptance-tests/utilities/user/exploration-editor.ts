@@ -1777,6 +1777,7 @@ export class ExplorationEditor extends BaseUser {
 
     await algebricExpressionEditor.click();
     await algebricExpressionEditor.type(expression);
+    await this.page.waitForTimeout(1000);
   }
 
   /**
@@ -1803,6 +1804,7 @@ export class ExplorationEditor extends BaseUser {
 
     await algebricExpressionEditor.click();
     await algebricExpressionEditor.type(solution);
+    await this.page.waitForTimeout(1000);
 
     if (await this.isOnScreenKeyboardVisible()) {
       await this.hideOSK();
@@ -2133,6 +2135,7 @@ export class ExplorationEditor extends BaseUser {
 
     await equationBox.click();
     await equationBox.type(equation);
+    await this.page.waitForTimeout(1000);
 
     if (this.isViewportAtMobileWidth()) {
       const onScreenKeyboardSelector = '.e2e-test-osk-hide-button';
@@ -2160,6 +2163,7 @@ export class ExplorationEditor extends BaseUser {
     await this.waitForElementToStabilize(equationBox);
     await equationBox.click();
     await equationBox.type(solution);
+    await this.page.waitForTimeout(1000);
 
     if (await this.isOnScreenKeyboardVisible()) {
       await this.hideOSK();
