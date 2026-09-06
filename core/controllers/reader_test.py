@@ -2828,7 +2828,9 @@ class StateHitEventHandlerTests(test_utils.GenericTestBase):
         all_models = stats_models.StateHitEventLogEntryModel.get_all()
         self.assertEqual(all_models.count(), 1)
 
-        state_hit_event_log_entry_model = all_models.get()
+        state_hit_event_log_entry_model: Optional[
+            stats_models.StateHitEventLogEntryModel
+        ] = all_models.get()
         assert state_hit_event_log_entry_model is not None
         model = state_hit_event_log_entry_model
 
@@ -2935,7 +2937,9 @@ class StateCompleteEventHandlerTests(test_utils.GenericTestBase):
         all_models = stats_models.StateCompleteEventLogEntryModel.get_all()
         self.assertEqual(all_models.count(), 1)
 
-        state_complete_event_log_entry_model = all_models.get()
+        state_complete_event_log_entry_model: Optional[
+            stats_models.StateCompleteEventLogEntryModel
+        ] = all_models.get()
         assert state_complete_event_log_entry_model is not None
         model = state_complete_event_log_entry_model
 
@@ -3012,7 +3016,9 @@ class LeaveForRefresherExpEventHandlerTests(test_utils.GenericTestBase):
         )
         self.assertEqual(all_models.count(), 1)
 
-        exp_event_log_model = all_models.get()
+        exp_event_log_model: Optional[
+            stats_models.LeaveForRefresherExplorationEventLogEntryModel
+        ] = all_models.get()
         assert exp_event_log_model is not None
         model = exp_event_log_model
 
@@ -3160,7 +3166,9 @@ class ExplorationStartEventHandlerTests(test_utils.GenericTestBase):
         all_models = stats_models.StartExplorationEventLogEntryModel.get_all()
         self.assertEqual(all_models.count(), 1)
 
-        event_log_entry_model = all_models.get()
+        event_log_entry_model: Optional[
+            stats_models.StartExplorationEventLogEntryModel
+        ] = all_models.get()
         assert event_log_entry_model is not None
         model = event_log_entry_model
 
@@ -3236,7 +3244,9 @@ class ExplorationActualStartEventHandlerTests(test_utils.GenericTestBase):
         )
         self.assertEqual(all_models.count(), 1)
 
-        event_log_entry_model = all_models.get()
+        event_log_entry_model: Optional[
+            stats_models.ExplorationActualStartEventLogEntryModel
+        ] = all_models.get()
         assert event_log_entry_model is not None
         model = event_log_entry_model
 
@@ -3307,7 +3317,9 @@ class SolutionHitEventHandlerTests(test_utils.GenericTestBase):
         all_models = stats_models.SolutionHitEventLogEntryModel.get_all()
         self.assertEqual(all_models.count(), 1)
 
-        event_log_entry_model = all_models.get()
+        event_log_entry_model: Optional[
+            stats_models.SolutionHitEventLogEntryModel
+        ] = all_models.get()
         assert event_log_entry_model is not None
         model = event_log_entry_model
 

@@ -730,7 +730,7 @@ class TypescriptChecksTests(test_utils.GenericTestBase):
             ),
         )
 
-        with (
+        with (  # type: ignore[unreachable]
             compile_and_check_typescript_swap,
             compile_and_check_angular_templates_swap,
         ):
