@@ -19,22 +19,23 @@
  * IP.1. Learn about the organization
  */
 
+import {test} from '@playwright/test';
 import {UserFactory} from '../../utilities/common/user-factory';
 import {LoggedOutUser} from '../../utilities/user/logged-out-user';
 
-describe('Interested Parent', function () {
+test.describe('Interested Parent', () => {
   let parentUser: LoggedOutUser;
 
-  beforeAll(async function () {
-    parentUser = await UserFactory.createLoggedOutUser();
+  test.beforeAll(async ({browser}) => {
+    parentUser = await UserFactory.createLoggedOutUser(browser);
   });
 
-  it('should learn about the organization', async function () {
+  test('should learn about the organization', async () => {
     // Visit splash page.
-    await parentUser.navigateToSplashPage();
+    await parentUser.navigateToSplashPageAsLoggedOutUser();
     await parentUser.acceptCookieBannerIfPresent();
     await parentUser.waitForPageToFullyLoad();
-    await parentUser.expectScreenshotToMatch('homePage', __dirname);
+    await parentUser.expectScreenshotToMatch('homePage');
 
     // Visit the About Oppia page from navbar.
     await parentUser.clickAboutButtonInAboutMenuOnNavbar();
@@ -85,10 +86,7 @@ describe('Interested Parent', function () {
     await parentUser.clickTeachButtonInAboutMenuOnNavbar();
     await parentUser.acceptCookieBannerIfPresent();
     await parentUser.waitForPageToFullyLoad();
-    await parentUser.expectScreenshotToMatch(
-      'parentsOrTeachersPage',
-      __dirname
-    );
+    await parentUser.expectScreenshotToMatch('parentsOrTeachersPage');
 
     await parentUser.subheadingInParentsAndTeachersPageToContain(
       ' Looking for tips on how to use Oppia lessons? '
@@ -102,7 +100,7 @@ describe('Interested Parent', function () {
     await parentUser.expectLessonCreationStepsAccordionToBeFunctionalInTeachPage();
   });
 
-  afterAll(async function () {
+  test.afterAll(async () => {
     await UserFactory.closeAllBrowsers();
   });
 });
