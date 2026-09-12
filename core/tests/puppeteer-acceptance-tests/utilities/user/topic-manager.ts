@@ -5565,6 +5565,25 @@ export class TopicManager extends BaseUser {
       await this.clickOnElementWithSelector(mobileReadyToPublishButton);
     } else {
       await this.page.waitForSelector(markAsReadyToPublishButton);
+
+      // Wait for any toast messages to disappear before clicking the button to avoid click interception
+      await this.page
+        .waitForFunction(
+          () => {
+            const toasts = document.querySelectorAll(
+              '.toast-top-center, .e2e-test-toast-message'
+            );
+            for (const toast of toasts) {
+              if (toast && window.getComputedStyle(toast).display !== 'none') {
+                return false;
+              }
+            }
+            return true;
+          },
+          {timeout: 15000}
+        )
+        .catch(() => {});
+
       await this.clickOnElementWithSelector(markAsReadyToPublishButton);
 
       await this.expectElementToBeVisible(markAsReadyToPublishButton, false);
