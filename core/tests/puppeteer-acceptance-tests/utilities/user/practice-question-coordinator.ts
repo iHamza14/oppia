@@ -87,6 +87,7 @@ export class QuestionCoordinator extends BaseUser {
     await saveButton.click();
 
     await this.expectElementToBeVisible(questionRoleEditorModalSelector, false);
+    await this.expectElementToBeVisible('ngb-modal-window', false);
   }
 
   /**

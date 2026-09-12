@@ -155,6 +155,7 @@ describe('Practice Question Coordinator', function () {
     await questionCoordinator.addUsernameInUsernameInputModal(
       questionSubmitter.username ?? ''
     );
+    await questionCoordinator.scrollToTopOfPage();
     await questionCoordinator.expectScreenshotToMatch(
       'editQuestionRightsModalWithSubmitterChecked',
       __dirname
@@ -172,6 +173,7 @@ describe('Practice Question Coordinator', function () {
     await questionCoordinator.addUsernameInUsernameInputModal(
       questionReviewer.username ?? ''
     );
+    await questionCoordinator.scrollToTopOfPage();
     await questionCoordinator.expectScreenshotToMatch(
       'editQuestionRightsModalWithReviewerChecked',
       __dirname
