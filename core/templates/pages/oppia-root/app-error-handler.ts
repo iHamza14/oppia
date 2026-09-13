@@ -24,6 +24,7 @@
 import {HttpClient} from '@angular/common/http';
 import {ErrorHandler} from '@angular/core';
 import {LoggerService} from 'services/contextual/logger.service';
+import sourceMappedStackTrace from 'sourcemapped-stacktrace';
 
 export class AppErrorHandler extends ErrorHandler {
   // AngularFire throws duplicate errors because it uses setTimeout() to manage
@@ -100,29 +101,35 @@ export class AppErrorHandler extends ErrorHandler {
       }
     }
 
-    let messageAndStackTrace = [
-      '',
-      error.message,
-      '',
-      '    at URL: ' + window.location.href,
-    ].join('\n');
     let timeDifference = Date.now() - this.timeOfLastPostedError;
     // To prevent an overdose of errors, throttle to at most 1 error
     // every MIN_TIME_BETWEEN_ERRORS_MSEC.
     if (timeDifference > this.MIN_TIME_BETWEEN_ERRORS_MSEC) {
-      this.http
-        .post('/frontend_errors', {
-          error: messageAndStackTrace,
-        })
-        .toPromise()
-        .then(
-          () => {
-            this.timeOfLastPostedError = Date.now();
-          },
-          () => {
-            this.loggerService.warn('Error logging failed.');
-          }
-        );
+      sourceMappedStackTrace.mapStackTrace(
+        error.stack,
+        (mappedStack: string[]) => {
+          let messageAndStackTrace = [
+            '',
+            error.message,
+            mappedStack ? mappedStack.join('\n') : (error.stack || ''),
+            '    at URL: ' + window.location.href,
+          ].join('\n');
+
+          this.http
+            .post('/frontend_errors', {
+              error: messageAndStackTrace,
+            })
+            .toPromise()
+            .then(
+              () => {
+                this.timeOfLastPostedError = Date.now();
+              },
+              () => {
+                this.loggerService.warn('Error logging failed.');
+              }
+            );
+        }
+      );
     }
 
     this.loggerService.error(error.message);
