@@ -6672,6 +6672,9 @@ export class ExplorationEditor extends BaseUser {
       await this.page.waitForSelector(destinationSelectorDropdown, {
         visible: true,
       });
+      await this.page.waitForSelector(
+        `${destinationSelectorDropdown} option:checked`
+      );
 
       try {
         const selectedDestinationText = await this.page.$eval(
