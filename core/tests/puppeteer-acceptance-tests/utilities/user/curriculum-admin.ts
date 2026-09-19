@@ -929,6 +929,7 @@ export class CurriculumAdmin extends TopicManager {
       await this.page.waitForSelector('oppia-topic-editor-save-modal', {
         hidden: true,
       });
+      await this.waitForNetworkIdle();
       if (topicName) {
         await this.openTopicEditor(topicName);
       }
@@ -946,6 +947,7 @@ export class CurriculumAdmin extends TopicManager {
       );
       await this.clickOnElementWithSelector(closeSaveModalButton);
       await this.page.waitForSelector(modalDiv, {hidden: true});
+      await this.waitForNetworkIdle();
     }
   }
 
