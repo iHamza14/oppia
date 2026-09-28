@@ -87,6 +87,19 @@ export class QuestionCoordinator extends BaseUser {
     await saveButton.click();
 
     await this.expectElementToBeVisible(questionRoleEditorModalSelector, false);
+    await this.page.waitForSelector(
+      '.modal-backdrop, ngb-modal-window, .modal',
+      {
+        hidden: true,
+      }
+    );
+  }
+
+  /**
+   * Checks if the question role editor modal is visible.
+   */
+  async expectQuestionRoleEditorModalToBeVisible(): Promise<void> {
+    await this.expectElementToBeVisible(questionRoleEditorModalSelector);
   }
 
   /**
