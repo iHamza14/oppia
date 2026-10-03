@@ -6710,6 +6710,9 @@ export class ExplorationEditor extends BaseUser {
       });
 
       try {
+        await this.page.waitForSelector(
+          `${destinationSelectorDropdown} option:checked`
+        );
         const selectedDestinationText = await this.page.$eval(
           `${destinationSelectorDropdown} option:checked`,
           option => option.textContent?.trim() || ''
