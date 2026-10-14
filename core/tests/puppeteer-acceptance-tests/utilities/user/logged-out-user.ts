@@ -303,7 +303,7 @@ const googleGroupSignUpLinkInTermsPage =
 const emailLinkSelector = '.oppia-contact-mail';
 const mobileDonateButtonOnDonatePage = '.donate-modal-button';
 const donateModalIframeSelector = '.e2e-test-donate-page-iframe';
-const classroomNameHeading = '.e2e-test-classroom-name';
+const classroomNameHeading = 'h1.e2e-test-classroom-name';
 const errorPageHeading = '.e2e-test-error-page-heading';
 const classroomTileContainer = '.oppia-classroom-tile-container';
 
@@ -1023,9 +1023,6 @@ export class LoggedOutUser extends BaseUser {
    * Function to navigate to the classrooms page.
    */
   async navigateToClassroomsPage(verifyURL: boolean = true): Promise<void> {
-    if (this.page.url() === classroomsPageUrl) {
-      await this.page.reload();
-    }
     await this.goto(classroomsPageUrl, verifyURL);
   }
 
@@ -3623,14 +3620,14 @@ export class LoggedOutUser extends BaseUser {
    * This function verifies that the user is on the correct classroom page.
    */
   async expectToBeOnClassroomPage(classroomName: string): Promise<void> {
-    await this.page.waitForSelector(classroomNameHeading);
+    await this.page.waitForSelector(classroomNameHeading, {visible: true});
 
-    const buttonText = await this.page.$eval(
+    const headingText = await this.page.$eval(
       classroomNameHeading,
-      element => (element as HTMLHeadElement).innerText
+      element => (element as HTMLHeadingElement).innerText
     );
 
-    if (buttonText !== classroomName) {
+    if (headingText !== classroomName) {
       throw new Error(
         `The ${classroomName} classroom name is not visible. URL: ${this.page.url()}`
       );

@@ -2336,6 +2336,7 @@ export class CurriculumAdmin extends TopicManager {
     );
     await this.clickOnElementWithSelector(saveNewClassroomButton);
     await this.page.waitForSelector(createNewClassroomModal, {visible: false});
+    await this.waitForNetworkIdle();
     showMessage(`Created ${classroomName} classroom.`);
   }
 
@@ -2403,6 +2404,7 @@ export class CurriculumAdmin extends TopicManager {
     await this.clickOnElementWithSelector(saveClassroomButton);
 
     await this.page.waitForSelector(saveClassroomButton, {hidden: true});
+    await this.waitForNetworkIdle();
 
     showMessage(`Updated ${classroomName} classroom.`);
   }
@@ -2533,6 +2535,7 @@ export class CurriculumAdmin extends TopicManager {
 
     await this.clickOnElementWithSelector(saveClassroomButton);
     await this.page.waitForSelector(saveClassroomButton, {hidden: true});
+    await this.waitForNetworkIdle();
 
     showMessage(`Added ${topicName} topic to the ${classroomName} classroom.`);
   }
@@ -2587,6 +2590,7 @@ export class CurriculumAdmin extends TopicManager {
     await this.clickOnElementWithSelector(publishClassroomButton);
     await this.clickOnElementWithSelector(saveClassroomButton);
     await this.page.waitForSelector(saveClassroomButton, {hidden: true});
+    await this.waitForNetworkIdle();
 
     showMessage(`Published ${classroomName} classroom.`);
   }
@@ -2601,6 +2605,7 @@ export class CurriculumAdmin extends TopicManager {
     await this.clickOnElementWithSelector(enableDiagnosticTestButton);
     await this.clickOnElementWithSelector(saveClassroomButton);
     await this.page.waitForSelector(saveClassroomButton, {hidden: true});
+    await this.waitForNetworkIdle();
 
     showMessage(`Enabled diagnostic test for ${classroomName} classroom.`);
   }
