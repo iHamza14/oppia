@@ -47,6 +47,7 @@ from typing import (
     Optional,
     OrderedDict,
     Sequence,
+    Set,
     Tuple,
     TypedDict,
     Union,
@@ -175,7 +176,8 @@ class ContributionOpportunitiesHandler(
         self, cursor: Optional[str], search_query: Optional[str] = None
     ) -> Tuple[List[ClientSideSkillOpportunityDict], Optional[str], bool]:
         """Returns a list of skill opportunities available for questions with
-        a corresponding topic name.
+        a corresponding topic name. Published classroom topics are prioritized
+        above unpublished topics.
 
         Args:
             cursor: str or None. If provided, the list of returned entities
@@ -196,72 +198,197 @@ class ContributionOpportunitiesHandler(
                     this batch. If False, there are no further results after
                     this batch.
         """
-        # We want to focus attention on lessons that are part of a classroom.
-        # See issue #12221.
-        classroom_topic_ids: List[str] = []
+        # We want to focus attention on lessons that are part of a classroom
+        # (see issue #12221) for published topics. For unpublished topics,
+        # we allow question contributions so contributors can create practice
+        # questions before a topic is published (see issue #24120). Skills
+        # in published classroom topics are prioritized before skills in
+        # unpublished topics.
+        classroom_topic_ids: Set[str] = set()
         classrooms = classroom_config_services.get_all_classrooms()
         for classroom in classrooms:
-            classroom_topic_ids.extend(classroom.get_topic_ids())
-        classroom_topics = topic_fetchers.get_topics_by_ids(classroom_topic_ids)
-        # Associate each skill with one classroom topic name.
-        # TODO(#8912): Associate each skill/skill opportunity with all linked
-        # topics.
-        classroom_topic_skill_id_to_topic_name = {}
-        for topic in classroom_topics:
-            if topic is None:
+            classroom_topic_ids.update(classroom.get_topic_ids())
+
+        all_topics = topic_fetchers.get_all_topics()
+        all_topic_rights = topic_fetchers.get_all_topic_rights()
+
+        published_classroom_skill_id_to_topic_name: Dict[str, str] = {}
+        unpublished_topic_skill_id_to_topic_name: Dict[str, str] = {}
+
+        for topic in all_topics:
+            topic_rights = all_topic_rights.get(topic.id)
+            if topic_rights is None:
                 continue
-            for skill_id in topic.get_all_skill_ids():
-                classroom_topic_skill_id_to_topic_name[skill_id] = topic.name
+            if topic_rights.topic_is_published:
+                if topic.id in classroom_topic_ids:
+                    for skill_id in topic.get_all_skill_ids():
+                        published_classroom_skill_id_to_topic_name[skill_id] = (
+                            topic.name
+                        )
+            else:
+                for skill_id in topic.get_all_skill_ids():
+                    unpublished_topic_skill_id_to_topic_name[skill_id] = (
+                        topic.name
+                    )
 
-        skill_opportunities, cursor, more = (
-            opportunity_services.get_skill_opportunities(cursor)
-        )
+        # Associate each skill with one topic name, prioritizing published
+        # classroom topics.
+        for skill_id in published_classroom_skill_id_to_topic_name:
+            unpublished_topic_skill_id_to_topic_name.pop(skill_id, None)
+
+        phase = 'published'
+        raw_cursor: Optional[str] = cursor
+        if cursor is not None:
+            if cursor.startswith('unpublished:'):
+                phase = 'unpublished'
+                raw_cursor = cursor[len('unpublished:') :] or None
+            elif cursor.startswith('published:'):
+                phase = 'published'
+                raw_cursor = cursor[len('published:') :] or None
+            else:
+                phase = 'published'
+                raw_cursor = cursor
+
         opportunities: List[ClientSideSkillOpportunityDict] = []
-        # Fetch opportunities until we have at least a page's worth that
-        # correspond to a classroom or there are no more opportunities.
-        while len(opportunities) < constants.OPPORTUNITIES_PAGE_SIZE:
-            for skill_opportunity in skill_opportunities:
-                if (
-                    skill_opportunity.id
-                    in classroom_topic_skill_id_to_topic_name
-                ):
-                    skill_opportunity_dict = skill_opportunity.to_dict()
-                    topic_name = classroom_topic_skill_id_to_topic_name[
-                        skill_opportunity.id
-                    ]
-                    skill_description = skill_opportunity_dict[
-                        'skill_description'
-                    ]
+        next_cursor: Optional[str] = None
+        more = False
+        published_cursor: Optional[str] = raw_cursor
 
-                    # We filter here in the controller rather than the service/model layer because:
-                    # 1. Datastore does not natively support case-insensitive substring matching.
-                    # 2. SkillOpportunityModel does not store topic_name, so we must fetch the
-                    #    paginated batch, map the topics, and filter them in memory.
-                    # This performs a case-insensitive match on both the skill description and topic name.
-                    if search_query is None or (
-                        search_query.lower() in skill_description.lower()
-                        or search_query.lower() in topic_name.lower()
-                    ):
-                        client_side_skill_opportunity_dict: (
-                            ClientSideSkillOpportunityDict
-                        ) = {
-                            'id': skill_opportunity_dict['id'],
-                            'skill_description': skill_description,
-                            'question_count': skill_opportunity_dict[
-                                'question_count'
-                            ],
-                            'topic_name': topic_name,
-                            'questions_in_review_count': 0,
-                        }
-                        opportunities.append(client_side_skill_opportunity_dict)
-            if (
-                not more
-                or len(opportunities) >= constants.OPPORTUNITIES_PAGE_SIZE
-            ):
-                break
-            skill_opportunities, cursor, more = (
-                opportunity_services.get_skill_opportunities(cursor)
+        if phase == 'published':
+            skill_opportunities, raw_cursor, datastore_more = (
+                opportunity_services.get_skill_opportunities(raw_cursor)
             )
+            published_cursor = raw_cursor
+            while len(opportunities) < constants.OPPORTUNITIES_PAGE_SIZE:
+                for skill_opportunity in skill_opportunities:
+                    if (
+                        skill_opportunity.id
+                        in published_classroom_skill_id_to_topic_name
+                    ):
+                        topic_name = published_classroom_skill_id_to_topic_name[
+                            skill_opportunity.id
+                        ]
+                        skill_description = skill_opportunity.skill_description
+
+                        # We filter here in the controller rather than the
+                        # service/model layer because:
+                        # 1. Datastore does not natively support
+                        #    case-insensitive substring matching.
+                        # 2. SkillOpportunityModel does not store topic_name,
+                        #    so we must fetch the paginated batch, map the
+                        #    topics, and filter them in memory.
+                        # This performs a case-insensitive match on both the
+                        # skill description and topic name.
+                        if search_query is None or (
+                            search_query.lower() in skill_description.lower()
+                            or search_query.lower() in topic_name.lower()
+                        ):
+                            client_side_skill_opportunity_dict: (
+                                ClientSideSkillOpportunityDict
+                            ) = {
+                                'id': skill_opportunity.id,
+                                'skill_description': skill_description,
+                                'question_count': (
+                                    skill_opportunity.question_count
+                                ),
+                                'topic_name': topic_name,
+                                'questions_in_review_count': 0,
+                            }
+                            opportunities.append(
+                                client_side_skill_opportunity_dict
+                            )
+                            if (
+                                len(opportunities)
+                                >= constants.OPPORTUNITIES_PAGE_SIZE
+                            ):
+                                break
+                if (
+                    not datastore_more
+                    or len(opportunities) >= constants.OPPORTUNITIES_PAGE_SIZE
+                ):
+                    break
+                skill_opportunities, raw_cursor, datastore_more = (
+                    opportunity_services.get_skill_opportunities(raw_cursor)
+                )
+                published_cursor = raw_cursor
+
+            if len(opportunities) >= constants.OPPORTUNITIES_PAGE_SIZE:
+                if datastore_more:
+                    next_cursor = f'published:{raw_cursor or ""}'
+                    more = True
+                elif len(unpublished_topic_skill_id_to_topic_name) > 0:
+                    next_cursor = 'unpublished:'
+                    more = True
+                else:
+                    next_cursor = f'published:{raw_cursor or ""}'
+                    more = False
+            else:
+                phase = 'unpublished'
+                raw_cursor = None
+
+        if phase == 'unpublished':
+            if len(unpublished_topic_skill_id_to_topic_name) > 0:
+                skill_opportunities, raw_cursor, datastore_more = (
+                    opportunity_services.get_skill_opportunities(raw_cursor)
+                )
+                while len(opportunities) < constants.OPPORTUNITIES_PAGE_SIZE:
+                    for skill_opportunity in skill_opportunities:
+                        if (
+                            skill_opportunity.id
+                            in unpublished_topic_skill_id_to_topic_name
+                        ):
+                            topic_name = (
+                                unpublished_topic_skill_id_to_topic_name[
+                                    skill_opportunity.id
+                                ]
+                            )
+                            skill_description = (
+                                skill_opportunity.skill_description
+                            )
+
+                            if search_query is None or (
+                                search_query.lower()
+                                in skill_description.lower()
+                                or search_query.lower() in topic_name.lower()
+                            ):
+                                client_side_skill_opportunity_dict: (
+                                    ClientSideSkillOpportunityDict
+                                ) = {
+                                    'id': skill_opportunity.id,
+                                    'skill_description': skill_description,
+                                    'question_count': (
+                                        skill_opportunity.question_count
+                                    ),
+                                    'topic_name': topic_name,
+                                    'questions_in_review_count': 0,
+                                }
+                                opportunities.append(
+                                    client_side_skill_opportunity_dict
+                                )
+                                if (
+                                    len(opportunities)
+                                    >= constants.OPPORTUNITIES_PAGE_SIZE
+                                ):
+                                    break
+                    if not datastore_more or (
+                        len(opportunities) >= constants.OPPORTUNITIES_PAGE_SIZE
+                    ):
+                        break
+                    skill_opportunities, raw_cursor, datastore_more = (
+                        opportunity_services.get_skill_opportunities(raw_cursor)
+                    )
+
+                next_cursor = f'unpublished:{raw_cursor or ""}'
+                more = (
+                    datastore_more
+                    and len(opportunities) >= constants.OPPORTUNITIES_PAGE_SIZE
+                )
+            else:
+                next_cursor = f'published:{published_cursor or ""}'
+                more = False
+
+        if next_cursor is None:
+            next_cursor = ''
 
         skill_ids = [opp['id'] for opp in opportunities]
         skill_id_to_in_review_count = suggestion_services.get_question_suggestions_in_review_count_by_skill_ids(
@@ -273,7 +400,7 @@ class ContributionOpportunitiesHandler(
                 opp['id'], 0
             )
 
-        return opportunities, cursor, more
+        return opportunities, next_cursor, more
 
     def _get_translation_opportunity_dicts(
         self,

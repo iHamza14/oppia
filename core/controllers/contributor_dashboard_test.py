@@ -332,6 +332,268 @@ class ContributionOpportunitiesHandlerTest(test_utils.GenericTestBase):
         self.assertFalse(response['more'])
         self.assertIsInstance(response['next_cursor'], str)
 
+    def test_get_skill_opportunity_data_prioritizes_published_over_unpublished(
+        self,
+    ) -> None:
+        # Create an unpublished topic with a skill.
+        unpublished_topic_id = 'unpub_topic_id'
+        unpublished_topic_name = 'Unpublished Topic'
+        topic = topic_domain.Topic.create_default_topic(
+            unpublished_topic_id,
+            unpublished_topic_name,
+            'url-fragment-unpub',
+            'description',
+            'fragm-unpub',
+        )
+        topic.thumbnail_filename = 'thumbnail.svg'
+        topic.thumbnail_bg_color = '#C6DCDA'
+        topic_services.save_new_topic(self.owner_id, topic)
+
+        unpub_skill_id = 'unpub_skill_id'
+        self.save_new_skill(
+            unpub_skill_id,
+            self.admin_id,
+            description='Unpublished skill description',
+        )
+        topic_services.add_uncategorized_skill(
+            self.admin_id, topic.id, unpub_skill_id
+        )
+
+        response = self.get_json(
+            '%s/skill' % feconf.CONTRIBUTOR_OPPORTUNITIES_DATA_URL, params={}
+        )
+
+        # Published classroom topic skills come first, followed by unpublished
+        # topic skills.
+        expected_unpub_skill_opportunity_dict = {
+            'id': unpub_skill_id,
+            'skill_description': 'Unpublished skill description',
+            'question_count': 0,
+            'topic_name': unpublished_topic_name,
+            'questions_in_review_count': 0,
+        }
+        self.assertEqual(
+            response['opportunities'],
+            [
+                self.expected_skill_opportunity_dict_0,
+                self.expected_skill_opportunity_dict_1,
+                expected_unpub_skill_opportunity_dict,
+            ],
+        )
+        self.assertFalse(response['more'])
+        self.assertIsInstance(response['next_cursor'], str)
+
+    def test_get_skill_opportunity_data_pagination_published_to_unpublished(
+        self,
+    ) -> None:
+        # Create an unpublished topic with a skill.
+        unpublished_topic_id = 'unpub_topic_id_2'
+        unpublished_topic_name = 'Unpublished Topic 2'
+        topic = topic_domain.Topic.create_default_topic(
+            unpublished_topic_id,
+            unpublished_topic_name,
+            'url-fragment-unpub-two',
+            'description',
+            'fragm-unpub-two',
+        )
+        topic.thumbnail_filename = 'thumbnail.svg'
+        topic.thumbnail_bg_color = '#C6DCDA'
+        topic_services.save_new_topic(self.owner_id, topic)
+
+        unpub_skill_id = 'unpub_skill_id_2'
+        self.save_new_skill(
+            unpub_skill_id,
+            self.admin_id,
+            description='Unpublished skill description 2',
+        )
+        topic_services.add_uncategorized_skill(
+            self.admin_id, topic.id, unpub_skill_id
+        )
+
+        expected_unpub_skill_opportunity_dict = {
+            'id': unpub_skill_id,
+            'skill_description': 'Unpublished skill description 2',
+            'question_count': 0,
+            'topic_name': unpublished_topic_name,
+            'questions_in_review_count': 0,
+        }
+
+        # Page size 2: first page contains the 2 published classroom skills.
+        with self.swap(constants, 'OPPORTUNITIES_PAGE_SIZE', 2):
+            response = self.get_json(
+                '%s/skill' % feconf.CONTRIBUTOR_OPPORTUNITIES_DATA_URL,
+                params={},
+            )
+            self.assertEqual(
+                response['opportunities'],
+                [
+                    self.expected_skill_opportunity_dict_0,
+                    self.expected_skill_opportunity_dict_1,
+                ],
+            )
+            self.assertTrue(response['more'])
+            self.assertIsInstance(response['next_cursor'], str)
+
+            # Next page fetches unpublished topic skills.
+            next_cursor = response['next_cursor']
+            next_response = self.get_json(
+                '%s/skill' % feconf.CONTRIBUTOR_OPPORTUNITIES_DATA_URL,
+                params={'cursor': next_cursor},
+            )
+            self.assertEqual(
+                next_response['opportunities'],
+                [expected_unpub_skill_opportunity_dict],
+            )
+            self.assertFalse(next_response['more'])
+            self.assertIsInstance(next_response['next_cursor'], str)
+
+    def test_get_skill_opportunity_data_search_query_matches_unpublished_topics(
+        self,
+    ) -> None:
+        # Create an unpublished topic with skills.
+        unpublished_topic_id = 'unpub_topic_id_3'
+        unpublished_topic_name = 'Trigonometry'
+        topic = topic_domain.Topic.create_default_topic(
+            unpublished_topic_id,
+            unpublished_topic_name,
+            'url-fragment-unpub-three',
+            'description',
+            'fragm-unpub-three',
+        )
+        topic.thumbnail_filename = 'thumbnail.svg'
+        topic.thumbnail_bg_color = '#C6DCDA'
+        topic_services.save_new_topic(self.owner_id, topic)
+
+        unpub_skill_id = 'unpub_skill_id_3'
+        self.save_new_skill(
+            unpub_skill_id,
+            self.admin_id,
+            description='Cosine Rule Calculation',
+        )
+        topic_services.add_uncategorized_skill(
+            self.admin_id, topic.id, unpub_skill_id
+        )
+
+        # Match against unpublished topic name.
+        response = self.get_json(
+            '%s/skill' % feconf.CONTRIBUTOR_OPPORTUNITIES_DATA_URL,
+            params={'search_query': 'trigonometry'},
+        )
+        self.assertEqual(len(response['opportunities']), 1)
+        self.assertEqual(response['opportunities'][0]['id'], unpub_skill_id)
+
+        # Match against unpublished skill description.
+        response = self.get_json(
+            '%s/skill' % feconf.CONTRIBUTOR_OPPORTUNITIES_DATA_URL,
+            params={'search_query': 'cosine rule'},
+        )
+        self.assertEqual(len(response['opportunities']), 1)
+        self.assertEqual(response['opportunities'][0]['id'], unpub_skill_id)
+
+    def test_get_skill_opportunity_data_with_unpublished_topic_in_classroom(
+        self,
+    ) -> None:
+        # Create an unpublished topic and add it to the classroom.
+        unpublished_topic_id = 'unpub_topic_in_class'
+        unpublished_topic_name = 'Unpublished Topic In Classroom'
+        topic = topic_domain.Topic.create_default_topic(
+            unpublished_topic_id,
+            unpublished_topic_name,
+            'url-fragment-unpub-class',
+            'description',
+            'fragm-unpub-class',
+        )
+        topic.thumbnail_filename = 'thumbnail.svg'
+        topic.thumbnail_bg_color = '#C6DCDA'
+        topic_services.save_new_topic(self.owner_id, topic)
+
+        unpub_skill_id = 'unpub_skill_in_class'
+        self.save_new_skill(
+            unpub_skill_id,
+            self.admin_id,
+            description='Skill in unpublished classroom topic',
+        )
+        topic_services.add_uncategorized_skill(
+            self.admin_id, topic.id, unpub_skill_id
+        )
+
+        classroom_id = classroom_config_services.get_new_classroom_id()
+        self.save_new_valid_classroom(
+            classroom_id=classroom_id,
+            topic_id_to_prerequisite_topic_ids={unpublished_topic_id: []},
+        )
+
+        response = self.get_json(
+            '%s/skill' % feconf.CONTRIBUTOR_OPPORTUNITIES_DATA_URL, params={}
+        )
+
+        # Even though the unpublished topic is in a classroom, its skills are
+        # prioritized below the already-published classroom topic skills.
+        expected_unpub_skill_opportunity_dict = {
+            'id': unpub_skill_id,
+            'skill_description': 'Skill in unpublished classroom topic',
+            'question_count': 0,
+            'topic_name': unpublished_topic_name,
+            'questions_in_review_count': 0,
+        }
+        self.assertEqual(
+            response['opportunities'],
+            [
+                self.expected_skill_opportunity_dict_0,
+                self.expected_skill_opportunity_dict_1,
+                expected_unpub_skill_opportunity_dict,
+            ],
+        )
+
+    def test_get_skill_opportunity_data_with_only_unpublished_topics(
+        self,
+    ) -> None:
+        # Delete classroom so there are no published classroom topics.
+        classroom_config_services.delete_classroom(self.classroom_id)
+
+        # Create an unpublished topic with a skill.
+        unpublished_topic_id = 'unpub_topic_id_only'
+        unpublished_topic_name = 'Only Unpublished Topic'
+        topic = topic_domain.Topic.create_default_topic(
+            unpublished_topic_id,
+            unpublished_topic_name,
+            'url-fragment-unpub-only',
+            'description',
+            'fragm-unpub-only',
+        )
+        topic.thumbnail_filename = 'thumbnail.svg'
+        topic.thumbnail_bg_color = '#C6DCDA'
+        topic_services.save_new_topic(self.owner_id, topic)
+
+        unpub_skill_id = 'unpub_skill_id_only'
+        self.save_new_skill(
+            unpub_skill_id,
+            self.admin_id,
+            description='Only unpublished skill',
+        )
+        topic_services.add_uncategorized_skill(
+            self.admin_id, topic.id, unpub_skill_id
+        )
+
+        response = self.get_json(
+            '%s/skill' % feconf.CONTRIBUTOR_OPPORTUNITIES_DATA_URL, params={}
+        )
+
+        # Returns only the skill from the unpublished topic.
+        expected_unpub_skill_opportunity_dict = {
+            'id': unpub_skill_id,
+            'skill_description': 'Only unpublished skill',
+            'question_count': 0,
+            'topic_name': unpublished_topic_name,
+            'questions_in_review_count': 0,
+        }
+        self.assertEqual(
+            response['opportunities'],
+            [expected_unpub_skill_opportunity_dict],
+        )
+        self.assertFalse(response['more'])
+        self.assertIsInstance(response['next_cursor'], str)
+
     def test_get_translation_opportunities_fetches_matching_opportunities(
         self,
     ) -> None:
