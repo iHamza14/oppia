@@ -214,3 +214,66 @@ class CheckOverallBackendTestCoverageTests(test_utils.GenericTestBase):
         self.assertIn(
             'Backend overall line coverage checks passed.', self.print_arr
         )
+
+    def test_changed_files_no_python_files_passed(self) -> None:
+        with self.print_swap:
+            check_backend_test_coverage.main(
+                args=[
+                    '--changed_files',
+                    'README.md,core/controllers/profile_test.py',
+                ]
+            )
+
+        self.assertIn(
+            'No non-test backend files changed to check coverage for.',
+            self.print_arr,
+        )
+        self.assertIn(
+            'Backend overall line coverage checks passed.', self.print_arr
+        )
+
+    def test_changed_files_with_python_files_passed(self) -> None:
+        class MockProcess:
+            returncode = 0
+            stdout = 'TOTAL     150  0  20   0   100% '
+
+        def mock_subprocess_run(  # pylint: disable=unused-argument
+            *args: str, **kwargs: str
+        ) -> MockProcess:
+            return MockProcess()
+
+        expected_cmd = [
+            sys.executable,
+            '-m',
+            'coverage',
+            'report',
+            '--include=core/controllers/profile.py',
+            '--show-missing',
+            '--skip-covered',
+            '--skip-empty',
+        ]
+
+        swap_subprocess_run = self.swap_with_checks(
+            subprocess,
+            'run',
+            mock_subprocess_run,
+            expected_args=((expected_cmd,),),
+            expected_kwargs=[
+                {
+                    'capture_output': True,
+                    'encoding': 'utf-8',
+                    'env': self.env,
+                    'check': False,
+                }
+            ],
+        )
+        swap_exists = self.swap(os.path, 'exists', lambda path: True)
+
+        with self.print_swap, swap_exists, swap_subprocess_run:
+            check_backend_test_coverage.main(
+                args=['--changed_files', 'core/controllers/profile.py']
+            )
+
+        self.assertIn(
+            'Backend overall line coverage checks passed.', self.print_arr
+        )

@@ -147,6 +147,11 @@ _PARSER.add_argument(
     action='store_true',
 )
 _PARSER.add_argument(
+    '--allow_no_tests',
+    help='optional; if specified, does not raise error when no tests are run',
+    action='store_true',
+)
+_PARSER.add_argument(
     '-v',
     '--verbose',
     help='optional; if specified, display the output of the tests being run',
@@ -690,6 +695,9 @@ def main(args: Optional[List[str]] = None) -> None:
 
     print('')
     if total_count == 0:
+        if parsed_args.allow_no_tests:
+            print('No tests were run.')
+            return
         raise Exception('WARNING: No tests were run.')
 
     print(

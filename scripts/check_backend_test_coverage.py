@@ -12,35 +12,82 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This script checks if backend overall line coverage is 100%."""
+"""This script checks if backend line coverage is 100%."""
 
 from __future__ import annotations
 
+import argparse
 import os
 import re
 import subprocess
 import sys
+from typing import Final, List, Optional
 
 from scripts import common
 
+_PARSER: Final = argparse.ArgumentParser(
+    description="""
+Checks if backend line coverage is 100%.
+"""
+)
 
-def main() -> None:
-    """Checks if backend overall line coverage is 100%."""
+_PARSER.add_argument(
+    '--changed_files',
+    type=str,
+    default=None,
+    help='Optional comma-separated list of changed files to check coverage for.',
+)
+
+
+def main(args: Optional[List[str]] = None) -> None:
+    """Checks if backend line coverage is 100%."""
+    parsed_args = _PARSER.parse_args(args=args)
     env = os.environ.copy()
 
-    # See the "Report" section at
-    # https://coverage.readthedocs.io/en/latest/cmd.html
-    # for what each of the options mean.
-    cmd = [
-        sys.executable,
-        '-m',
-        'coverage',
-        'report',
-        '--omit="%s*","third_party/*","/usr/share/*"' % common.OPPIA_TOOLS_DIR,
-        '--show-missing',
-        '--skip-covered',
-        '--skip-empty',
-    ]
+    if parsed_args.changed_files is not None:
+        changed_files = [
+            f.strip() for f in parsed_args.changed_files.split(',') if f.strip()
+        ]
+        python_files = [
+            f
+            for f in changed_files
+            if f.endswith('.py')
+            and not f.endswith('_test.py')
+            and os.path.exists(f)
+        ]
+        if not python_files:
+            print('No non-test backend files changed to check coverage for.')
+            print('--------------------------------------------')
+            print('Backend overall line coverage checks passed.')
+            print('--------------------------------------------')
+            return
+
+        cmd = [
+            sys.executable,
+            '-m',
+            'coverage',
+            'report',
+            '--include=%s' % ','.join(python_files),
+            '--show-missing',
+            '--skip-covered',
+            '--skip-empty',
+        ]
+    else:
+        # See the "Report" section at
+        # https://coverage.readthedocs.io/en/latest/cmd.html
+        # for what each of the options mean.
+        cmd = [
+            sys.executable,
+            '-m',
+            'coverage',
+            'report',
+            '--omit="%s*","third_party/*","/usr/share/*"'
+            % common.OPPIA_TOOLS_DIR,
+            '--show-missing',
+            '--skip-covered',
+            '--skip-empty',
+        ]
+
     process = subprocess.run(
         cmd, capture_output=True, encoding='utf-8', env=env, check=False
     )

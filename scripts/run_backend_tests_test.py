@@ -676,6 +676,29 @@ class RunBackendTestsTests(test_utils.GenericTestBase):
                         ]
                     )
 
+    def test_no_tests_run_with_allow_no_tests_flag(self) -> None:
+        swap_check_results = self.swap(
+            run_backend_tests,
+            'check_test_results',
+            lambda *unused_args, **unused_kwargs: (0, 0, 0, {}),
+        )
+        swapcheck_coverage = self.swap(
+            run_backend_tests,
+            'check_coverage',
+            lambda *unused_args, **unused_kwargs: ('', 100.00),
+        )
+
+        with swapcheck_coverage, self.swap_cloud_datastore_emulator:
+            with self.swap_redis_server, swap_check_results:
+                with self.swap_execute_task:
+                    run_backend_tests.main(
+                        args=[
+                            '--test_targets',
+                            'scripts.run_backend_tests_test',
+                            '--allow_no_tests',
+                        ]
+                    )
+
     def test_incomplete_overall_backend_coverage_throws_error(self) -> None:
         swap_check_results = self.swap(
             run_backend_tests,

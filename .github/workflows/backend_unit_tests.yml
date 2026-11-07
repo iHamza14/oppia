@@ -36,6 +36,41 @@ jobs:
         run: |
           SHA=$(git ls-remote https://github.com/oppia/oppia.git refs/heads/develop | awk '{print $1}')
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+  compute_backend_tests_to_run:
+    name: Compute backend tests to run
+    needs: setup_merge_sha
+    runs-on: ubuntu-22.04
+    # Skip the job if we were only launched to cancel running jobs via the concurrency key above.
+    if: ${{ ! (
+        (github.event_name == 'merge_group' && github.event.action == 'destroyed')
+        || (github.event_name == 'pull_request' && github.event.action == 'closed')
+      ) }}
+    outputs:
+      RUN_ALL_TESTS: ${{ steps.compute.outputs.RUN_ALL_TESTS }}
+      NUM_TESTS: ${{ steps.compute.outputs.NUM_TESTS }}
+      TEST_TARGETS: ${{ steps.compute.outputs.TEST_TARGETS }}
+      CHANGED_BACKEND_FILES: ${{ steps.compute.outputs.CHANGED_BACKEND_FILES }}
+      SHARDS_TO_RUN: ${{ steps.compute.outputs.SHARDS_TO_RUN }}
+    steps:
+      - name: Checkout repository so that local actions can be used
+        uses: actions/checkout@v4
+        with:
+          # This fetches all git refs, which is needed in the
+          # check_backend_tests_to_run script below.
+          fetch-depth: 0
+      - name: Merge develop and set up dependencies
+        uses: ./.github/actions/merge-develop-and-set-up-dependencies
+        with:
+          merge_sha: ${{ needs.setup_merge_sha.outputs.develop_sha }}
+      - id: compute
+        name: Check backend tests to run
+        env:
+          SHOULD_OUTPUT_ALL_TESTS: ${{ github.event_name != 'pull_request' }}
+        run: |
+          python -m scripts.check_backend_tests_to_run \
+            --github_head_ref="HEAD" \
+            --github_base_ref="${{ needs.setup_merge_sha.outputs.develop_sha }}" \
+            ${{ env.SHOULD_OUTPUT_ALL_TESTS == 'true' && '--output_all_test_suites' || '' }}
   run_backend_associated_test_file_checks:
     name: Verify associated test files
     needs: setup_merge_sha
@@ -63,13 +98,14 @@ jobs:
           webhook-url: ${{ secrets.BUILD_FAILURE_ROOM_WEBHOOK_URL }}
   run_tests:
     name: Shard ${{ matrix.shard }}
-    needs: setup_merge_sha
+    needs: [setup_merge_sha, compute_backend_tests_to_run]
     runs-on: ubuntu-22.04
-    # Skip the job if we were only launched to cancel running jobs via the concurrency key above.
+    # Skip the job if we were only launched to cancel running jobs via the concurrency key above,
+    # or if we are not running all backend test shards.
     if: ${{ ! (
         (github.event_name == 'merge_group' && github.event.action == 'destroyed')
         || (github.event_name == 'pull_request' && github.event.action == 'closed')
-      ) }}
+      ) && needs.compute_backend_tests_to_run.outputs.RUN_ALL_TESTS == 'true' }}
     strategy:
       fail-fast: ${{ github.event_name == 'merge_group' }}
       matrix:
@@ -108,8 +144,12 @@ jobs:
           retention-days: 1
   check_combined_coverage:
     name: Check coverage
-    needs: [run_tests, setup_merge_sha]
+    needs: [run_tests, setup_merge_sha, compute_backend_tests_to_run]
     runs-on: ubuntu-22.04
+    if: ${{ ! (
+        (github.event_name == 'merge_group' && github.event.action == 'destroyed')
+        || (github.event_name == 'pull_request' && github.event.action == 'closed')
+      ) && needs.compute_backend_tests_to_run.outputs.RUN_ALL_TESTS == 'true' }}
     steps:
       - name: Checkout repository so that local actions can be used
         uses: actions/checkout@v4
@@ -171,8 +211,12 @@ jobs:
       pull-requests: write
   check_backend_test_times:
     name: Check test times
-    needs: [run_tests, setup_merge_sha]
+    needs: [run_tests, setup_merge_sha, compute_backend_tests_to_run]
     runs-on: ubuntu-22.04
+    if: ${{ ! (
+        (github.event_name == 'merge_group' && github.event.action == 'destroyed')
+        || (github.event_name == 'pull_request' && github.event.action == 'closed')
+      ) && needs.compute_backend_tests_to_run.outputs.RUN_ALL_TESTS == 'true' }}
     steps:
       - name: Checkout repository so that local actions can be used
         uses: actions/checkout@v4
@@ -220,3 +264,60 @@ jobs:
           name: backend_test_times
           path: backend_test_times.txt
           retention-days: 7
+  run_partial_backend_tests:
+    name: Run affected backend tests
+    needs: [setup_merge_sha, compute_backend_tests_to_run]
+    runs-on: ubuntu-22.04
+    # Run only on pull requests when specific backend tests are affected.
+    if: ${{ ! (
+        (github.event_name == 'merge_group' && github.event.action == 'destroyed')
+        || (github.event_name == 'pull_request' && github.event.action == 'closed')
+      ) && needs.compute_backend_tests_to_run.outputs.RUN_ALL_TESTS == 'false' && fromJson(needs.compute_backend_tests_to_run.outputs.NUM_TESTS) > 0 }}
+    steps:
+      - name: Checkout repository so that local actions can be used
+        uses: actions/checkout@v4
+      - name: Merge develop and set up dependencies
+        uses: ./.github/actions/merge-develop-and-set-up-dependencies
+        with:
+          merge_sha: ${{ needs.setup_merge_sha.outputs.develop_sha }}
+      - name: Run affected backend tests
+        id: run_affected_backend_tests
+        run: python -m scripts.run_backend_tests --generate_coverage_report --generate_time_report --ignore_coverage --exclude_load_tests --test_targets "${{ needs.compute_backend_tests_to_run.outputs.TEST_TARGETS }}"
+      - name: Check differential coverage on changed backend files
+        run: python -m scripts.check_backend_test_coverage --changed_files "${{ needs.compute_backend_tests_to_run.outputs.CHANGED_BACKEND_FILES }}"
+  check_workflow_statuses:
+    name: Check workflow status
+    needs:
+      - run_backend_associated_test_file_checks
+      - run_tests
+      - check_combined_coverage
+      - check_backend_test_times
+      - run_partial_backend_tests
+    runs-on: ubuntu-22.04
+    if: always()
+    steps:
+      - name: Checkout repository so that local actions can be used
+        uses: actions/checkout@v4
+      - name: Merge develop and set up dependencies
+        if: github.event_name != 'merge_group'
+        uses: ./.github/actions/merge-develop-and-set-up-dependencies
+        with:
+          merge_sha: ${{ needs.setup_merge_sha.outputs.develop_sha }}
+      - name: Check workflow status
+        if: github.event_name != 'merge_group'
+        uses: ./.github/actions/check-workflow-status
+        id: check_workflow_status
+        with:
+          jobs: ${{ toJson(needs) }}
+      - name: Fail if workflow status is failure
+        if: ${{
+            github.event_name != 'merge_group'
+            && steps.check_workflow_status.outputs.WORKFLOW_STATUS == 'failure'
+          }}
+        run: |
+          echo "Backend unit tests or coverage checks failed."
+          exit 1
+        shell: bash
+      - name: Pass if we are in the merge group and therefore skipping previous jobs
+        if: github.event_name == 'merge_group'
+        run: echo "Pass even though tests were skipped because we are in the merge queue"
