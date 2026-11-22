@@ -1606,3 +1606,11 @@ def load_demo(collection_id: str) -> None:
             exp_services.load_demo(exp_id)
 
     logging.info('Collection with id %s was loaded.' % collection_id)
+
+
+rights_manager.register_activity_summary_update_hook(
+    constants.ACTIVITY_TYPE_COLLECTION,
+    lambda activity_rights: regenerate_collection_and_contributors_summaries(
+        activity_rights.id
+    ),
+)

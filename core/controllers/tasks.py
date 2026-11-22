@@ -33,6 +33,7 @@ from core.domain import (
     suggestion_registry,
     taskqueue_services,
     voiceover_cloud_task_services,
+    voiceover_regeneration_services,
     voiceover_services,
     wipeout_service,
 )
@@ -418,7 +419,9 @@ class DeferredTasksHandler(base.BaseHandler[Dict[str, str], Dict[str, str]]):
         ),
         fn_ids_to_names[
             'FUNCTION_ID_REGENERATE_VOICEOVERS_FOR_BATCH_CONTENTS'
-        ]: (voiceover_services.regenerate_voiceovers_for_batch_contents),
+        ]: (
+            voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents
+        ),
     }
 
     @acl_decorators.can_perform_tasks_in_taskqueue

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 from core import feconf
 from core.domain import (
     topic_domain,
@@ -169,62 +171,6 @@ class TopicFetchersUnitTests(test_utils.GenericTestBase):
         topic_id_list = [self.TOPIC_ID]
         for topic_key in topic_rights:
             self.assertIn(topic_key, topic_id_list)
-
-    def test_get_canonical_story_dicts(self) -> None:
-        self.save_new_story(self.story_id_2, self.user_id, self.TOPIC_ID)
-        topic_services.publish_story(
-            self.TOPIC_ID, self.story_id_1, self.user_id_admin
-        )
-        topic_services.publish_story(
-            self.TOPIC_ID, self.story_id_2, self.user_id_admin
-        )
-        topic: Optional[topic_domain.Topic] = topic_fetchers.get_topic_by_id(
-            self.TOPIC_ID
-        )
-
-        # Ruling out the possibility of None for mypy type checking.
-        assert topic is not None
-        canonical_dict_list: List[topic_fetchers.CannonicalStoryDict] = (
-            topic_fetchers.get_canonical_story_dicts(self.user_id_admin, topic)
-        )
-
-        self.assertEqual(len(canonical_dict_list), 2)
-
-        story_dict_1: topic_fetchers.CannonicalStoryDict = {
-            'id': 'story_1',
-            'title': 'Title',
-            'description': 'Description',
-            'node_titles': [],
-            'thumbnail_bg_color': None,
-            'thumbnail_filename': None,
-            'url_fragment': 'title',
-            'topic_url_fragment': 'name-one',
-            'classroom_url_fragment': 'staging',
-            'classroom_name': 'staging',
-            'story_is_published': True,
-            'completed_node_titles': [],
-            'all_node_dicts': [],
-        }
-
-        story_dict_2: topic_fetchers.CannonicalStoryDict = {
-            'id': 'story_2',
-            'title': 'Title',
-            'description': 'Description',
-            'node_titles': [],
-            'thumbnail_bg_color': None,
-            'thumbnail_filename': None,
-            'url_fragment': 'title',
-            'topic_url_fragment': 'name-one',
-            'classroom_url_fragment': 'staging',
-            'classroom_name': 'staging',
-            'story_is_published': True,
-            'completed_node_titles': [],
-            'all_node_dicts': [],
-        }
-
-        story_dict_list = [story_dict_1, story_dict_2]
-        for canonical_story_dict in canonical_dict_list:
-            self.assertIn(canonical_story_dict, story_dict_list)
 
     def test_get_all_topics(self) -> None:
         topics = topic_fetchers.get_all_topics()
@@ -847,3 +793,52 @@ class TopicFetchersUnitTests(test_utils.GenericTestBase):
         self.assertEqual(subtopics[1].id, 2)
         self.assertEqual(subtopics[1].title, 'Subtopic 2')
         self.assertEqual(subtopics[1].url_fragment, 'subtopic-two')
+
+    def test_get_topic_ids_for_exploration_id(self) -> None:
+        topic_summary_1 = mock.Mock()
+        topic_summary_2 = mock.Mock()
+
+        topic_summary_1.id = 'topic_1'
+        topic_summary_1.published_story_exploration_mapping = {
+            'story_1': ['exp_1', 'exp_2'],
+        }
+        topic_summary_2.id = 'topic_2'
+        topic_summary_2.published_story_exploration_mapping = {
+            'story_2': ['exp_3', 'exp_4'],
+        }
+
+        get_all_topic_summaries_mock = mock.Mock(
+            return_value=[topic_summary_1, topic_summary_2]
+        )
+
+        with self.swap(
+            topic_fetchers,
+            'get_all_topic_summaries',
+            get_all_topic_summaries_mock,
+        ):
+            topic_ids = topic_fetchers.get_topic_ids_for_exploration_id('exp_3')
+
+        get_all_topic_summaries_mock.assert_called_once_with()
+        self.assertEqual(topic_ids, ['topic_2'])
+
+    def test_get_topic_ids_for_exploration_id_returns_empty_list_when_not_found(
+        self,
+    ) -> None:
+        topic_summary = mock.Mock()
+        topic_summary.id = 'topic_1'
+        topic_summary.published_story_exploration_mapping = {
+            'story_1': ['other_exp_id'],
+        }
+
+        get_all_topic_summaries_mock = mock.Mock(return_value=[topic_summary])
+
+        with self.swap(
+            topic_fetchers,
+            'get_all_topic_summaries',
+            get_all_topic_summaries_mock,
+        ):
+            topic_ids = topic_fetchers.get_topic_ids_for_exploration_id(
+                'exp_id'
+            )
+
+        self.assertEqual(topic_ids, [])

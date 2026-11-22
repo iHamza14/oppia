@@ -19,7 +19,6 @@ from __future__ import annotations
 from core import feconf
 from core.domain import (
     email_manager,
-    event_services,
     exp_domain,
     feedback_domain,
     feedback_services,
@@ -772,11 +771,11 @@ class FeedbackThreadUnitTests(test_utils.GenericTestBase):
         self.save_new_valid_exploration(exp_id, 'owner')
 
         event_handler_call_counter_exploration = test_utils.CallCounter(
-            event_services.FeedbackThreadCreatedEventHandler.record
+            feedback_services.handle_new_thread_created
         )
         with self.swap(
-            event_services.FeedbackThreadCreatedEventHandler,
-            'record',
+            feedback_services,
+            'handle_new_thread_created',
             event_handler_call_counter_exploration,
         ):
             feedback_services.create_thread(
@@ -792,11 +791,11 @@ class FeedbackThreadUnitTests(test_utils.GenericTestBase):
             )
 
         event_handler_call_counter_non_exploration = test_utils.CallCounter(
-            event_services.FeedbackThreadCreatedEventHandler.record
+            feedback_services.handle_new_thread_created
         )
         with self.swap(
-            event_services.FeedbackThreadCreatedEventHandler,
-            'record',
+            feedback_services,
+            'handle_new_thread_created',
             event_handler_call_counter_non_exploration,
         ):
             feedback_services.create_thread(
@@ -805,6 +804,42 @@ class FeedbackThreadUnitTests(test_utils.GenericTestBase):
             self.assertEqual(
                 event_handler_call_counter_non_exploration.times_called, 0
             )
+
+    def test_handle_new_thread_created(self) -> None:
+        exp_id = 'exp_id'
+
+        feedback_services.handle_new_thread_created(exp_id)
+        thread = feedback_services.get_thread_analytics(exp_id)
+        self.assertEqual(thread.id, exp_id)
+        self.assertEqual(thread.num_open_threads, 1)
+        self.assertEqual(thread.num_total_threads, 1)
+
+        feedback_services.handle_new_thread_created(exp_id)
+        thread = feedback_services.get_thread_analytics(exp_id)
+        self.assertEqual(thread.id, exp_id)
+        self.assertEqual(thread.num_open_threads, 2)
+        self.assertEqual(thread.num_total_threads, 2)
+
+    def test_handle_thread_status_changed_directly(self) -> None:
+        exp_id = 'exp_id'
+
+        # Changing status from closed to open.
+        feedback_services.handle_thread_status_changed(
+            exp_id, '', feedback_models.STATUS_CHOICES_OPEN
+        )
+
+        thread = feedback_services.get_thread_analytics(exp_id)
+        self.assertEqual(thread.id, exp_id)
+        self.assertEqual(thread.num_open_threads, 1)
+
+        # Changing status from open to closed.
+        feedback_services.handle_thread_status_changed(
+            exp_id, feedback_models.STATUS_CHOICES_OPEN, ''
+        )
+
+        thread = feedback_services.get_thread_analytics(exp_id)
+        self.assertEqual(thread.id, exp_id)
+        self.assertEqual(thread.num_open_threads, 0)
 
     def test_create_message_increments_message_count(self) -> None:
         thread_id = feedback_services.create_thread(

@@ -1151,7 +1151,7 @@ class VoiceoverRegenerationTests(test_utils.GenericTestBase):
                 cloud_run.function_id
                 == 'regenerate_voiceovers_for_batch_contents'
             ):
-                voiceover_services.regenerate_voiceovers_for_batch_contents(
+                voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
                     exploration_id,
                     parent_cloud_task_model_id,
                     cloud_run.task_run_id,
@@ -1232,7 +1232,7 @@ class VoiceoverRegenerationTests(test_utils.GenericTestBase):
                 cloud_run.function_id
                 == 'regenerate_voiceovers_for_batch_contents'
             ):
-                voiceover_services.regenerate_voiceovers_for_batch_contents(
+                voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
                     exploration_id,
                     parent_cloud_task_model_id,
                     cloud_run.task_run_id,
@@ -1347,7 +1347,7 @@ class VoiceoverRegenerationTests(test_utils.GenericTestBase):
                 cloud_run.function_id
                 == 'regenerate_voiceovers_for_batch_contents'
             ):
-                voiceover_services.regenerate_voiceovers_for_batch_contents(
+                voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
                     exploration_id,
                     parent_cloud_task_model_id,
                     cloud_run.task_run_id,
@@ -1523,7 +1523,7 @@ class VoiceoverRegenerationTests(test_utils.GenericTestBase):
                     cloud_run.function_id
                     == 'regenerate_voiceovers_for_batch_contents'
                 ):
-                    voiceover_services.regenerate_voiceovers_for_batch_contents(
+                    voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
                         exploration_id,
                         parent_cloud_task_model_id,
                         cloud_run.task_run_id,
@@ -1648,7 +1648,7 @@ class VoiceoverRegenerationTests(test_utils.GenericTestBase):
                     cloud_run.function_id
                     == 'regenerate_voiceovers_for_batch_contents'
                 ):
-                    voiceover_services.regenerate_voiceovers_for_batch_contents(
+                    voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
                         exploration_id,
                         parent_cloud_task_model_id,
                         cloud_run.task_run_id,
@@ -1861,7 +1861,7 @@ class VoiceoverRegenerationTests(test_utils.GenericTestBase):
                 cloud_run.function_id
                 == 'regenerate_voiceovers_for_batch_contents'
             ):
-                voiceover_services.regenerate_voiceovers_for_batch_contents(
+                voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
                     exploration_id,
                     parent_cloud_task_model_id,
                     cloud_run.task_run_id,
@@ -2270,7 +2270,7 @@ class VoiceoverRegenerationTests(test_utils.GenericTestBase):
                 cloud_run.function_id
                 == 'regenerate_voiceovers_for_batch_contents'
             ):
-                voiceover_services.regenerate_voiceovers_for_batch_contents(
+                voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
                     exploration_id,
                     parent_cloud_task_model_id,
                     cloud_run.task_run_id,
@@ -2374,7 +2374,7 @@ class VoiceoverRegenerationTests(test_utils.GenericTestBase):
                     cloud_run.function_id
                     == 'regenerate_voiceovers_for_batch_contents'
                 ):
-                    voiceover_services.regenerate_voiceovers_for_batch_contents(
+                    voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
                         exploration_id,
                         parent_cloud_task_run_model_id,
                         cloud_run.task_run_id,
@@ -2522,7 +2522,7 @@ class VoiceoverRegenerationTests(test_utils.GenericTestBase):
                     cloud_run.function_id
                     == 'regenerate_voiceovers_for_batch_contents'
                 ):
-                    voiceover_services.regenerate_voiceovers_for_batch_contents(
+                    voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
                         exploration_id,
                         parent_cloud_task_model_id,
                         cloud_run.task_run_id,

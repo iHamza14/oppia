@@ -24,6 +24,8 @@ from core.domain import (
     skill_fetchers,
     skill_services,
     state_domain,
+    topic_domain,
+    topic_fetchers,
     translation_domain,
 )
 from core.platform import models
@@ -33,9 +35,11 @@ from typing import Final
 
 MYPY = False
 if MYPY:  # pragma: no cover
-    from mypy_imports import skill_models
+    from mypy_imports import skill_models, user_models
 
-(skill_models,) = models.Registry.import_models([models.Names.SKILL])
+(skill_models, user_models) = models.Registry.import_models(
+    [models.Names.SKILL, models.Names.USER]
+)
 
 
 class SkillFetchersUnitTests(test_utils.GenericTestBase):
@@ -473,3 +477,89 @@ class SkillFetchersUnitTests(test_utils.GenericTestBase):
             results[0].rubric_schema_version,
             feconf.CURRENT_RUBRIC_SCHEMA_VERSION,
         )
+
+    def test_get_all_topic_assignments_for_skill(self) -> None:
+        topic_id = topic_fetchers.get_new_topic_id()
+        topic_id_1 = topic_fetchers.get_new_topic_id()
+        self.save_new_topic(
+            topic_id,
+            self.USER_ID,
+            name='Topic1',
+            abbreviated_name='topic-three',
+            url_fragment='topic-three',
+            description='Description',
+            canonical_story_ids=[],
+            additional_story_ids=[],
+            uncategorized_skill_ids=['skill_1'],
+            subtopics=[],
+            next_subtopic_id=1,
+        )
+
+        subtopic = topic_domain.Subtopic.from_dict(
+            {
+                'id': 1,
+                'title': 'subtopic1',
+                'skill_ids': ['skill_1'],
+                'thumbnail_filename': None,
+                'thumbnail_bg_color': None,
+                'thumbnail_size_in_bytes': None,
+                'url_fragment': 'subtopic-one',
+            }
+        )
+        self.save_new_topic(
+            topic_id_1,
+            self.USER_ID,
+            name='Topic2',
+            abbreviated_name='topic-four',
+            url_fragment='topic-four',
+            description='Description2',
+            canonical_story_ids=[],
+            additional_story_ids=[],
+            uncategorized_skill_ids=[],
+            subtopics=[subtopic],
+            next_subtopic_id=2,
+        )
+
+        topic_assignments = skill_fetchers.get_all_topic_assignments_for_skill(
+            'skill_1'
+        )
+        topic_assignments = sorted(
+            topic_assignments, key=lambda i: i.topic_name
+        )
+        self.assertEqual(len(topic_assignments), 2)
+        self.assertEqual(topic_assignments[0].topic_name, 'Topic1')
+        self.assertEqual(topic_assignments[0].subtopic_id, None)
+        self.assertEqual(topic_assignments[1].topic_name, 'Topic2')
+        self.assertEqual(topic_assignments[1].subtopic_id, 1)
+
+    def test_get_multi_users_skills_mastery(self) -> None:
+        user_ids = [self.USER_ID, 'user_2']
+        skill_ids = ['skill_1', 'skill_2']
+        degrees_of_mastery = {
+            self.USER_ID: {
+                'skill_1': 0.5,
+                'skill_2': 0.8,
+            },
+            'user_2': {'skill_1': None, 'skill_2': None},
+        }
+        user_models.UserSkillMasteryModel(
+            id=user_models.UserSkillMasteryModel.construct_model_id(
+                self.USER_ID, 'skill_1'
+            ),
+            user_id=self.USER_ID,
+            skill_id='skill_1',
+            degree_of_mastery=0.5,
+        ).put()
+        user_models.UserSkillMasteryModel(
+            id=user_models.UserSkillMasteryModel.construct_model_id(
+                self.USER_ID, 'skill_2'
+            ),
+            user_id=self.USER_ID,
+            skill_id='skill_2',
+            degree_of_mastery=0.8,
+        ).put()
+
+        user_skill_mastery = skill_fetchers.get_multi_users_skills_mastery(
+            user_ids, skill_ids
+        )
+        self.assertEqual(user_skill_mastery, degrees_of_mastery)

@@ -20,14 +20,8 @@ from __future__ import annotations
 
 import copy
 
-from core import feconf, utils
-from core.domain import (
-    caching_services,
-    classroom_config_services,
-    story_domain,
-    story_fetchers,
-    topic_domain,
-)
+from core import feconf
+from core.domain import caching_services, topic_domain
 from core.platform import models
 
 from typing import (
@@ -38,7 +32,6 @@ from typing import (
     Sequence,
     Set,
     Tuple,
-    TypedDict,
     overload,
 )
 
@@ -738,87 +731,6 @@ def get_all_topic_rights() -> Dict[str, topic_domain.TopicRights]:
     return topic_rights
 
 
-class CannonicalStoryDict(TypedDict):
-    """Dictionary that represents cannonical stories."""
-
-    id: str
-    title: str
-    description: str
-    node_titles: List[str]
-    thumbnail_bg_color: Optional[str]
-    thumbnail_filename: Optional[str]
-    url_fragment: str
-    topic_url_fragment: str
-    classroom_url_fragment: Optional[str]
-    classroom_name: Optional[str]
-    story_is_published: bool
-    completed_node_titles: List[str]
-    all_node_dicts: List[story_domain.StoryNodeDict]
-
-
-def get_canonical_story_dicts(
-    user_id: str, topic: topic_domain.Topic
-) -> List[CannonicalStoryDict]:
-    """Returns a list of canonical story dicts in the topic.
-
-    Args:
-        user_id: str. The ID of the user.
-        topic: Topic. The topic domain object.
-
-    Returns:
-        list(dict). A list of canonical story dicts in the given topic.
-    """
-    canonical_story_ids: List[str] = topic.get_canonical_story_ids(
-        include_only_published=True
-    )
-    canonical_story_summaries: List[story_domain.StorySummary] = [
-        story_fetchers.get_story_summary_by_id(canonical_story_id)
-        for canonical_story_id in canonical_story_ids
-    ]
-    canonical_story_dicts = []
-    for story_summary in canonical_story_summaries:
-        pending_and_all_nodes_in_story = (
-            story_fetchers.get_pending_and_all_nodes_in_story(
-                user_id, story_summary.id
-            )
-        )
-        all_nodes = pending_and_all_nodes_in_story['all_nodes']
-        pending_nodes = pending_and_all_nodes_in_story['pending_nodes']
-        pending_node_titles = [node.title for node in pending_nodes]
-        completed_node_titles = utils.compute_list_difference(
-            story_summary.node_titles, pending_node_titles
-        )
-        # Here we use MyPy ignore because the return type of
-        # 'to_human_readable_dict()' method is HumanReadableStorySummaryDict
-        # which do not contain topic_url_fragment, story_is_published and
-        # other keys. To overcome this missing keys issue, we have defined
-        # a CannonicalStoryDict and assigned it to the `story_summary_dict`.
-        # So, due to this a conflict in type assignment is raised which cause
-        # MyPy to throw `Incompatible types in assignment` error. Thus, to
-        # avoid the error, we used ignore here.
-        story_summary_dict: CannonicalStoryDict = (
-            story_summary.to_human_readable_dict()  # type: ignore[assignment]
-        )
-        story_summary_dict['node_titles'] = [node.title for node in all_nodes]
-        story_summary_dict['topic_url_fragment'] = topic.url_fragment
-        story_summary_dict['classroom_url_fragment'] = (
-            classroom_config_services.get_classroom_url_fragment_for_topic_id(
-                topic.id
-            )
-        )
-        story_summary_dict['classroom_name'] = (
-            classroom_config_services.get_classroom_name_for_topic_id(topic.id)
-        )
-        story_summary_dict['story_is_published'] = True
-        story_summary_dict['completed_node_titles'] = completed_node_titles
-        story_summary_dict['all_node_dicts'] = [
-            node.to_dict() for node in all_nodes
-        ]
-        canonical_story_dicts.append(story_summary_dict)
-
-    return canonical_story_dicts
-
-
 def get_story_ids_linked_to_topic(topic_id: str) -> List[str]:
     """Returns the list of all canonical story IDs linked to a given topic.
 
@@ -830,3 +742,27 @@ def get_story_ids_linked_to_topic(topic_id: str) -> List[str]:
     """
     topic = get_topic_by_id(topic_id, strict=True)
     return topic.get_canonical_story_ids()
+
+
+def get_topic_ids_for_exploration_id(
+    exploration_id: str,
+) -> List[str]:
+    """Returns a list of topic ids for which the given exploration is a part of.
+
+    Args:
+        exploration_id: str. The id of the exploration.
+
+    Returns:
+        list(str). A list of topic ids.
+    """
+    topic_ids = []
+    topic_summaries = get_all_topic_summaries()
+
+    for topic_summary in topic_summaries:
+        for (
+            exploration_ids
+        ) in topic_summary.published_story_exploration_mapping.values():
+            if exploration_id in exploration_ids:
+                topic_ids.append(topic_summary.id)
+                break
+    return topic_ids

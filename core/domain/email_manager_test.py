@@ -40,7 +40,7 @@ from core.domain import (
     suggestion_registry,
     suggestion_services,
     taskqueue_services,
-    topic_services,
+    topic_fetchers,
     translation_domain,
     user_services,
 )
@@ -1947,7 +1947,7 @@ class GeneralFeedbackEmailManagerUnitTests(test_utils.EmailTestBase):
         mock_get_classroom = mock.Mock(return_value=classroom)
 
         topic_ids_swap = self.swap(
-            topic_services,
+            topic_fetchers,
             'get_topic_ids_for_exploration_id',
             mock_get_topic_ids,
         )
@@ -2004,7 +2004,7 @@ class GeneralFeedbackEmailManagerUnitTests(test_utils.EmailTestBase):
         mock_get_topic_ids = mock.Mock(return_value=[])
 
         topic_ids_swap = self.swap(
-            topic_services,
+            topic_fetchers,
             'get_topic_ids_for_exploration_id',
             mock_get_topic_ids,
         )
@@ -9643,7 +9643,7 @@ class EmailManagerCoverageTests(test_utils.EmailTestBase):
             )
 
         with self.swap(
-            topic_services,
+            topic_fetchers,
             'get_topic_ids_for_exploration_id',
             lambda x: ['dummy'],
         ), self.swap(

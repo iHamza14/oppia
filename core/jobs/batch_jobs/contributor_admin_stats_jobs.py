@@ -22,7 +22,7 @@ from core import feconf
 from core.domain import (
     exp_services,
     opportunity_services,
-    skill_services,
+    skill_fetchers,
     story_fetchers,
     topic_fetchers,
 )
@@ -1293,7 +1293,7 @@ class AuditAndLogIncorretDataInContributorAdminStatsJob(base_jobs.JobBase):
         with datastore_services.get_ndb_context():
             for s in general_suggestion_stats:
                 topic_assignments = list(
-                    skill_services.get_all_topic_assignments_for_skill(
+                    skill_fetchers.get_all_topic_assignments_for_skill(
                         s.target_id
                     )
                 )

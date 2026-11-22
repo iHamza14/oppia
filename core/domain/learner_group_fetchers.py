@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from core.domain import learner_group_domain, learner_group_services
+from core.domain import learner_group_domain
 from core.platform import models
 
 from typing import List, Literal, Optional, Sequence, overload
@@ -39,6 +39,32 @@ def get_new_learner_group_id() -> str:
         str. A new learner group id.
     """
     return learner_group_models.LearnerGroupModel.get_new_id()
+
+
+def get_learner_group_from_model(
+    learner_group_model: learner_group_models.LearnerGroupModel,
+) -> learner_group_domain.LearnerGroup:
+    """Returns the learner group domain object given the learner group
+    model loaded from the datastore.
+
+    Args:
+        learner_group_model: LearnerGroupModel. The learner group model
+            from the datastore.
+
+    Returns:
+        LearnerGroup. The learner group domain object corresponding to the
+        given model.
+    """
+    return learner_group_domain.LearnerGroup(
+        learner_group_model.id,
+        learner_group_model.title,
+        learner_group_model.description,
+        learner_group_model.facilitator_user_ids,
+        learner_group_model.learner_user_ids,
+        learner_group_model.invited_learner_user_ids,
+        learner_group_model.subtopic_page_ids,
+        learner_group_model.story_ids,
+    )
 
 
 @overload
@@ -94,9 +120,7 @@ def get_learner_group_by_id(
             )
         return None
 
-    return learner_group_services.get_learner_group_from_model(
-        learner_group_model
-    )
+    return get_learner_group_from_model(learner_group_model)
 
 
 def get_learner_groups_of_facilitator(
@@ -117,10 +141,7 @@ def get_learner_groups_of_facilitator(
     if not learner_grp_models:
         return []
 
-    return [
-        learner_group_services.get_learner_group_from_model(model)
-        for model in learner_grp_models
-    ]
+    return [get_learner_group_from_model(model) for model in learner_grp_models]
 
 
 @overload
@@ -229,10 +250,7 @@ def get_invited_learner_groups_of_learner(
     if not learner_grp_models:
         return []
 
-    return [
-        learner_group_services.get_learner_group_from_model(model)
-        for model in learner_grp_models
-    ]
+    return [get_learner_group_from_model(model) for model in learner_grp_models]
 
 
 def get_learner_groups_joined_by_learner(
@@ -254,7 +272,4 @@ def get_learner_groups_joined_by_learner(
     if not learner_grp_models:
         return []
 
-    return [
-        learner_group_services.get_learner_group_from_model(model)
-        for model in learner_grp_models
-    ]
+    return [get_learner_group_from_model(model) for model in learner_grp_models]

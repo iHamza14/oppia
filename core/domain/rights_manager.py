@@ -36,6 +36,7 @@ from core.domain import (
 from core.platform import models
 
 from typing import (
+    Callable,
     Dict,
     List,
     Literal,
@@ -217,44 +218,24 @@ def _save_exploration_rights(
     model.commit(committer_id, commit_message, commit_cmds)
 
 
-def _update_exploration_summary(
-    exploration_rights: exp_rights_domain.ExplorationRights,
-) -> None:
-    """Updates the exploration summary for the exploration associated with
-    the given exploration rights object.
+# A dictionary mapping activity_type to a function that updates the activity's summary.
+_ACTIVITY_SUMMARY_UPDATE_HOOKS: Dict[
+    str, Callable[[rights_domain.ActivityRights], None]
+] = {}
 
-    The ID of exploration rights object is the same as the ID of
-        associated exploration.
+
+def register_activity_summary_update_hook(
+    activity_type: str,
+    update_fn: Callable[[rights_domain.ActivityRights], None],
+) -> None:
+    """Registers a function to update an activity's summary when its rights change.
 
     Args:
-        exploration_rights: ExplorationRights. The exploration rights
-            object for the given exploration.
+        activity_type: str. The type of the activity.
+        update_fn: Callable[[ActivityRights], None]. A function that takes an
+            ActivityRights object and updates the corresponding summary.
     """
-    # TODO(msl): Get rid of inline imports by refactoring code.
-    from core.domain import exp_services
-
-    exp_services.regenerate_exploration_and_contributors_summaries(
-        exploration_rights.id
-    )
-
-
-def _update_collection_summary(
-    activity_rights: rights_domain.ActivityRights,
-) -> None:
-    """Updates the collection summary for the given activity associated with
-    the given rights object.
-
-    The ID of rights object is the same as the ID of associated activity.
-
-    Args:
-        activity_rights: ActivityRights. The rights object for the given
-            activity.
-    """
-    from core.domain import collection_services
-
-    collection_services.regenerate_collection_and_contributors_summaries(
-        activity_rights.id
-    )
+    _ACTIVITY_SUMMARY_UPDATE_HOOKS[activity_type] = update_fn
 
 
 def _update_activity_summary(
@@ -272,11 +253,8 @@ def _update_activity_summary(
         activity_rights: ActivityRights. The rights object for the given
             activity.
     """
-    if activity_type == constants.ACTIVITY_TYPE_EXPLORATION:
-        assert isinstance(activity_rights, exp_rights_domain.ExplorationRights)
-        _update_exploration_summary(activity_rights)
-    elif activity_type == constants.ACTIVITY_TYPE_COLLECTION:
-        _update_collection_summary(activity_rights)
+    if activity_type in _ACTIVITY_SUMMARY_UPDATE_HOOKS:
+        _ACTIVITY_SUMMARY_UPDATE_HOOKS[activity_type](activity_rights)
 
 
 def create_new_exploration_rights(
@@ -1644,7 +1622,9 @@ def set_private_viewability_of_exploration(
         commit_message,
         commit_cmds,
     )
-    _update_exploration_summary(exploration_rights)
+    _update_activity_summary(
+        constants.ACTIVITY_TYPE_EXPLORATION, exploration_rights
+    )
 
 
 def publish_exploration(

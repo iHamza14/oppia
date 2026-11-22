@@ -196,13 +196,17 @@ def update_learner_group(
     learner_group_model.subtopic_page_ids = subtopic_page_ids
     learner_group_model.story_ids = story_ids
 
-    learner_group = get_learner_group_from_model(learner_group_model)
+    learner_group = learner_group_fetchers.get_learner_group_from_model(
+        learner_group_model
+    )
     learner_group.validate()
 
     learner_group_model.update_timestamps()
     learner_group_model.put()
 
-    return get_learner_group_from_model(learner_group_model)
+    return learner_group_fetchers.get_learner_group_from_model(
+        learner_group_model
+    )
 
 
 def is_user_facilitator(user_id: str, group_id: str) -> bool:
@@ -666,32 +670,6 @@ def remove_invited_learners_from_learner_group(
 
     user_models.LearnerGroupsUserModel.update_timestamps_multi(models_to_put)
     user_models.LearnerGroupsUserModel.put_multi(models_to_put)
-
-
-def get_learner_group_from_model(
-    learner_group_model: learner_group_models.LearnerGroupModel,
-) -> learner_group_domain.LearnerGroup:
-    """Returns the learner group domain object given the learner group
-    model loaded from the datastore.
-
-    Args:
-        learner_group_model: LearnerGroupModel. The learner group model
-            from the datastore.
-
-    Returns:
-        LearnerGroup. The learner group domain object corresponding to the
-        given model.
-    """
-    return learner_group_domain.LearnerGroup(
-        learner_group_model.id,
-        learner_group_model.title,
-        learner_group_model.description,
-        learner_group_model.facilitator_user_ids,
-        learner_group_model.learner_user_ids,
-        learner_group_model.invited_learner_user_ids,
-        learner_group_model.subtopic_page_ids,
-        learner_group_model.story_ids,
-    )
 
 
 def can_user_be_invited(

@@ -34,6 +34,7 @@ from core.domain import (
     html_cleaner,
     rte_component_registry,
     state_domain,
+    taskqueue_services,
     translation_fetchers,
     voiceover_cloud_task_services,
     voiceover_services,
@@ -699,3 +700,106 @@ def regenerate_voiceovers_of_exploration(
             continue
 
     return errors_while_voiceover_regeneration
+
+
+def regenerate_voiceovers_for_batch_contents(
+    exploration_id: str,
+    parent_cloud_task_run_id: str,
+    child_cloud_task_run_id: str,
+) -> None:
+    """Regenerates automatic voiceovers for some contents of an exploration, so
+    that we can't hit the state where in an async deferred request due to large
+    numbers of contents to regenerate in one go we have a timeout becuase of
+    Gunicorn's timeout of 60 secs.
+
+    Args:
+        exploration_id: str. The ID of the exploration for which voiceovers
+            need to be regenerated.
+        parent_cloud_task_run_id: str. The unique identifier for the parent
+            cloud task run, which is responsible for regenerating voiceovers
+            for all the contents of the exploration in batches.
+        child_cloud_task_run_id: str. The unique identifier for the child
+            cloud task run, which is responsible for regenerating voiceovers
+            for a batch of contents of the exploration in a language accent.
+
+    Raises:
+        Exception. Raised when there is an error during the voiceover
+            regeneration process for the batch of contents.
+    """
+    logging.info(
+        'Voiceover regeneration logs: Starting to regenerate voiceovers for '
+        'batch contents for exploration_id: %s, parent_cloud_task_run_id: %s, '
+        'child_cloud_task_run_id: %s'
+        % (exploration_id, parent_cloud_task_run_id, child_cloud_task_run_id)
+    )
+
+    voiceover_regeneration_batch_execution_job = voiceover_cloud_task_services.get_voiceover_regeneration_task_batch_model(
+        parent_cloud_task_run_id, child_cloud_task_run_id
+    )
+
+    logging.info(
+        'Voiceover regeneration logs: Trying to fetch voiceover regeneration batch execution job, '
+        'parent_cloud_task_run_id: %s, child_cloud_task_run_id: %s.'
+        % (parent_cloud_task_run_id, child_cloud_task_run_id)
+    )
+
+    # Ruling out the possibility of None for mypy type checking.
+    assert voiceover_regeneration_batch_execution_job is not None
+
+    exploration_id = voiceover_regeneration_batch_execution_job.exploration_id
+    exploration_version = (
+        voiceover_regeneration_batch_execution_job.exploration_version
+    )
+    language_accent_code = (
+        voiceover_regeneration_batch_execution_job.language_accent_code
+    )
+    content_ids_to_content_values = (
+        voiceover_regeneration_batch_execution_job.content_ids_to_contents_map
+    )
+
+    try:
+        errors_while_voiceover_regeneration = (
+            regenerate_voiceovers_of_exploration(
+                exploration_id,
+                exploration_version,
+                content_ids_to_content_values,
+                language_accent_code,
+            )
+        )
+    except Exception as e:
+        errors_while_voiceover_regeneration = [
+            (content_id, str(e))
+            for content_id in content_ids_to_content_values.keys()
+        ]
+
+    error_collections_during_voiceover_regeneration = []
+
+    error_collections_during_voiceover_regeneration.append(
+        json.dumps(
+            {
+                'exploration_id': exploration_id,
+                'language_accent_code': language_accent_code,
+                'error_messages': errors_while_voiceover_regeneration,
+            }
+        )
+    )
+
+    child_cloud_task_run = taskqueue_services.get_cloud_task_run_by_model_id(
+        child_cloud_task_run_id
+    )
+    # Ruling out the possibility of None for mypy type checking.
+    assert child_cloud_task_run is not None
+
+    child_cloud_task_run.exception_messages_for_failed_runs.extend(
+        error_collections_during_voiceover_regeneration
+    )
+    if len(errors_while_voiceover_regeneration) > 0:
+        child_cloud_task_run.latest_job_state = 'PERMANENTLY_FAILED'
+    else:
+        child_cloud_task_run.latest_job_state = 'SUCCEEDED'
+
+    taskqueue_services.update_cloud_task_run_model(child_cloud_task_run)
+
+    voiceover_services.wrap_up_voiceover_regeneration_task(
+        exploration_id, parent_cloud_task_run_id
+    )

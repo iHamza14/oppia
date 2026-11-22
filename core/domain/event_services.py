@@ -24,7 +24,6 @@ from core import feconf
 from core.domain import (
     exp_domain,
     exp_fetchers,
-    feedback_services,
     stats_domain,
     stats_services,
     taskqueue_services,
@@ -392,36 +391,6 @@ class LeaveForRefresherExpEventHandler(BaseEventHandler):
             state_name,
             session_id,
             time_spent_in_state_secs,
-        )
-
-
-class FeedbackThreadCreatedEventHandler(BaseEventHandler):
-    """Event handler for recording new feedback thread creation events."""
-
-    EVENT_TYPE: str = feconf.EVENT_TYPE_NEW_THREAD_CREATED
-
-    @classmethod
-    def _handle_event(cls, exp_id: str) -> None:
-        """Perform in-request processing of recording new feedback thread
-        creation events.
-        """
-        feedback_services.handle_new_thread_created(exp_id)
-
-
-class FeedbackThreadStatusChangedEventHandler(BaseEventHandler):
-    """Event handler for recording reopening feedback thread events."""
-
-    EVENT_TYPE: str = feconf.EVENT_TYPE_THREAD_STATUS_CHANGED
-
-    @classmethod
-    def _handle_event(
-        cls, exp_id: str, old_status: str, new_status: str
-    ) -> None:
-        """Perform in-request processing of recording reopening feedback
-        thread events.
-        """
-        feedback_services.handle_thread_status_changed(
-            exp_id, old_status, new_status
         )
 
 

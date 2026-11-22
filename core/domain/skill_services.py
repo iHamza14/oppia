@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import collections
-import itertools
 import logging
 
 from core import feature_flag_list, feconf
@@ -513,37 +512,6 @@ def get_image_filenames_from_skill(skill: skill_domain.Skill) -> List[str]:
     """
     html_list = skill.get_all_html_content_strings()
     return html_cleaner.get_image_filenames_from_html_strings(html_list)
-
-
-def get_all_topic_assignments_for_skill(
-    skill_id: str,
-) -> List[skill_domain.TopicAssignment]:
-    """Returns a list containing all the topics to which the given skill is
-    assigned along with topic details.
-
-    Args:
-        skill_id: str. ID of the skill.
-
-    Returns:
-        list(TopicAssignment). A list of TopicAssignment domain objects.
-    """
-    topic_assignments = []
-    topics = topic_fetchers.get_all_topics()
-    for topic in topics:
-        if skill_id in topic.get_all_skill_ids():
-            subtopic_id = None
-            for subtopic in topic.subtopics:
-                if skill_id in subtopic.skill_ids:
-                    subtopic_id = subtopic.id
-                    break
-
-            topic_assignments.append(
-                skill_domain.TopicAssignment(
-                    topic.id, topic.name, topic.version, subtopic_id
-                )
-            )
-
-    return topic_assignments
 
 
 def get_topic_names_with_given_skill_in_diagnostic_test(
@@ -1576,52 +1544,6 @@ def get_multi_user_skill_mastery(
             degrees_of_mastery[skill_id] = skill_mastery_model.degree_of_mastery
 
     return degrees_of_mastery
-
-
-def get_multi_users_skills_mastery(
-    user_ids: List[str], skill_ids: List[str]
-) -> Dict[str, Dict[str, Optional[float]]]:
-    """Fetches the mastery of user in multiple skills.
-
-    Args:
-        user_ids: list(str). The user IDs of the users.
-        skill_ids: list(str). Skill IDs of the skill for which mastery degree is
-            requested.
-
-    Returns:
-        dict(str, dict(str, float|None)). The keys are the user IDs and values
-        are dictionaries with keys as requested skill IDs and values
-        as the corresponding mastery degree of the user or None if
-        UserSkillMasteryModel does not exist for the skill.
-    """
-    # We need to convert the resultant object of itertools product to a list
-    # to be able to use it multiple times as it otherwise gets exhausted after
-    # being iterated over once.
-    all_combinations = list(itertools.product(user_ids, skill_ids))
-    model_ids = []
-    for user_id, skill_id in all_combinations:
-        model_ids.append(
-            user_models.UserSkillMasteryModel.construct_model_id(
-                user_id, skill_id
-            )
-        )
-
-    skill_mastery_models = user_models.UserSkillMasteryModel.get_multi(
-        model_ids
-    )
-    degrees_of_masteries: Dict[str, Dict[str, Optional[float]]] = {
-        user_id: {} for user_id in user_ids
-    }
-    for i, (user_id, skill_id) in enumerate(all_combinations):
-        skill_mastery_model = skill_mastery_models[i]
-        if skill_mastery_model is None:
-            degrees_of_masteries[user_id][skill_id] = None
-        else:
-            degrees_of_masteries[user_id][
-                skill_id
-            ] = skill_mastery_model.degree_of_mastery
-
-    return degrees_of_masteries
 
 
 def skill_has_associated_questions(skill_id: str) -> bool:

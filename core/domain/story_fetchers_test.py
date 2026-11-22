@@ -28,7 +28,7 @@ from core.domain import (
 from core.platform import models
 from core.tests import test_utils
 
-from typing import Final
+from typing import Final, List
 
 MYPY = False
 if MYPY:  # pragma: no cover
@@ -823,3 +823,36 @@ class StoryFetchersUnitTests(test_utils.GenericTestBase):
             topic_fetchers.get_topic_by_id(self.TOPIC_ID)
         )
         self.assertEqual(len(arcs_with_stories), 0)
+
+    def test_get_canonical_story_dicts(self) -> None:
+        self.save_new_valid_exploration(self.EXP_ID_1, self.user_id_admin)
+        self.publish_exploration(self.user_id_admin, self.EXP_ID_1)
+        story_id_2 = story_services.get_new_story_id()
+        self.save_new_story(
+            story_id_2, self.USER_ID, self.TOPIC_ID, url_fragment='story-two'
+        )
+        topic_services.add_canonical_story(
+            self.USER_ID, self.TOPIC_ID, story_id_2
+        )
+        topic_services.publish_story(
+            self.TOPIC_ID, self.story_id, self.user_id_admin
+        )
+        topic_services.publish_story(
+            self.TOPIC_ID, story_id_2, self.user_id_admin
+        )
+        topic = topic_fetchers.get_topic_by_id(self.TOPIC_ID)
+
+        assert topic is not None
+        canonical_dict_list: List[story_fetchers.CannonicalStoryDict] = (
+            story_fetchers.get_canonical_story_dicts(self.user_id_admin, topic)
+        )
+
+        self.assertEqual(len(canonical_dict_list), 2)
+        canonical_story_ids = [d['id'] for d in canonical_dict_list]
+        self.assertIn(self.story_id, canonical_story_ids)
+        self.assertIn(story_id_2, canonical_story_ids)
+        for canonical_story_dict in canonical_dict_list:
+            self.assertTrue(canonical_story_dict['story_is_published'])
+            self.assertEqual(
+                canonical_story_dict['topic_url_fragment'], 'topic'
+            )

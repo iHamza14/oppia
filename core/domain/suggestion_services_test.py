@@ -149,7 +149,9 @@ class SuggestionServicesUnitTests(test_utils.GenericTestBase):
         accept_suggestion.
         """
         with self.swap(
-            exp_services, 'update_exploration', self.mock_update_exploration
+            suggestion_registry,
+            '_EXPLORATION_UPDATE_HOOK',
+            self.mock_update_exploration,
         ):
             with self.swap(
                 exp_fetchers,

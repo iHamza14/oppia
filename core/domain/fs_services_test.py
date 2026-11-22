@@ -24,7 +24,6 @@ from core.constants import constants
 from core.domain import (
     fs_services,
     image_services,
-    platform_parameter_list,
     user_services,
 )
 from core.platform import models
@@ -420,14 +419,6 @@ class GetStaticAssetUrlTests(test_utils.GenericTestBase):
                 'http://localhost:8181/assetsstatic/robots.txt',
             )
 
-    @test_utils.set_platform_parameters(
-        [
-            (
-                platform_parameter_list.ParamName.OPPIA_SITE_URL_FOR_EMAILS,
-                'test-url',
-            ),
-        ]
-    )
     def test_function_returns_correct_url_for_non_emulator_mode(self) -> None:
         with self.swap(constants, 'EMULATOR_MODE', False):
             with self.swap(

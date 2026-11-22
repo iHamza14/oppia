@@ -25,7 +25,7 @@ from core.domain import (
     change_domain,
     classroom_config_services,
     learner_group_services,
-    skill_services,
+    skill_fetchers,
     study_guide_domain,
     subtopic_page_services,
     topic_domain,
@@ -577,7 +577,7 @@ def get_multi_users_study_guides_progress(
     )
 
     all_users_skill_mastery_dicts = (
-        skill_services.get_multi_users_skills_mastery(user_ids, all_skill_ids)
+        skill_fetchers.get_multi_users_skills_mastery(user_ids, all_skill_ids)
     )
 
     all_users_study_guide_prog_summaries: Dict[

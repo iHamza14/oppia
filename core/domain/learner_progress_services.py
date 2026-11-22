@@ -102,7 +102,7 @@ class DisplayableTopicSummaryDict(TypedDict):
     total_published_node_count: int
     thumbnail_bg_color: Optional[str]
     thumbnail_filename: Optional[str]
-    canonical_story_summary_dict: List[topic_fetchers.CannonicalStoryDict]
+    canonical_story_summary_dict: List[story_fetchers.CannonicalStoryDict]
     url_fragment: Optional[str]
     classroom_name: str
     classroom_url_fragment: str
@@ -1707,7 +1707,7 @@ def get_displayable_untracked_topic_summary_dicts(
                 'thumbnail_filename': topic.thumbnail_filename,
                 'thumbnail_bg_color': topic.thumbnail_bg_color,
                 'canonical_story_summary_dict': (
-                    topic_fetchers.get_canonical_story_dicts(user_id, topic)
+                    story_fetchers.get_canonical_story_dicts(user_id, topic)
                 ),
                 'url_fragment': topic.url_fragment,
                 'classroom_name': (
@@ -1770,7 +1770,7 @@ def get_displayable_topic_summary_dicts(
                 'thumbnail_filename': topic.thumbnail_filename,
                 'thumbnail_bg_color': topic.thumbnail_bg_color,
                 'canonical_story_summary_dict': (
-                    topic_fetchers.get_canonical_story_dicts(user_id, topic)
+                    story_fetchers.get_canonical_story_dicts(user_id, topic)
                 ),
                 'url_fragment': topic.url_fragment,
                 'classroom_name': (

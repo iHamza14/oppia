@@ -27,7 +27,6 @@ from core.domain import (
     change_domain,
     exp_domain,
     exp_fetchers,
-    exp_services,
     fs_services,
     html_cleaner,
     opportunity_services,
@@ -53,6 +52,7 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Sequence,
     Set,
     Type,
     TypedDict,
@@ -65,6 +65,41 @@ if MYPY:  # pragma: no cover
     from mypy_imports import suggestion_models
 
 (suggestion_models,) = models.Registry.import_models([models.Names.SUGGESTION])
+
+# A function to update an exploration when accepting an edit state content
+# suggestion. Populated by exp_services.
+_EXPLORATION_UPDATE_HOOK: Optional[
+    Callable[[str, str, Sequence[exp_domain.ExplorationChange], str], None]
+] = None
+
+
+def register_exploration_update_hook(
+    hook: Optional[
+        Callable[[str, str, Sequence[exp_domain.ExplorationChange], str], None]
+    ],
+) -> None:
+    """Registers a hook for updating an exploration when accepting a suggestion.
+
+    Args:
+        hook: Callable[[str, str, Sequence[ExplorationChange], str], None]|None.
+            The hook function to update an exploration, or None to unregister.
+    """
+    global _EXPLORATION_UPDATE_HOOK  # pylint: disable=global-statement
+    _EXPLORATION_UPDATE_HOOK = hook
+
+
+def get_exploration_update_hook() -> (
+    Optional[
+        Callable[[str, str, Sequence[exp_domain.ExplorationChange], str], None]
+    ]
+):
+    """Returns the registered exploration update hook.
+
+    Returns:
+        Callable[[str, str, Sequence[ExplorationChange], str], None]|None.
+        The registered hook function, or None if not registered.
+    """
+    return _EXPLORATION_UPDATE_HOOK
 
 
 class BaseSuggestionDict(TypedDict):
@@ -588,6 +623,9 @@ class SuggestionEditStateContent(BaseSuggestion):
 
         Args:
             commit_message: str. The commit message.
+
+        Raises:
+            Exception. The exploration update hook is not registered.
         """
         change_list = (
             self._get_change_list_for_accepting_edit_state_content_suggestion()
@@ -595,7 +633,9 @@ class SuggestionEditStateContent(BaseSuggestion):
         # Before calling this accept method we are already checking if user
         # with 'final_reviewer_id' exists or not.
         assert self.final_reviewer_id is not None
-        exp_services.update_exploration(
+        if _EXPLORATION_UPDATE_HOOK is None:
+            raise Exception('Exploration update hook is not registered.')
+        _EXPLORATION_UPDATE_HOOK(
             self.final_reviewer_id, self.target_id, change_list, commit_message
         )
 

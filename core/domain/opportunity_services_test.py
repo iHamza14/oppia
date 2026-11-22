@@ -2178,8 +2178,8 @@ class TranslationOpportunityServicesUnitTest(test_utils.GenericTestBase):
 
     def test_in_review_count_ignores_missing_suggestions(self) -> None:
         suggestions_swap = self.swap(
-            suggestion_services,
-            'get_translation_suggestions_in_review_by_entity_ids',
+            suggestion_models.GeneralSuggestionModel,
+            'get_in_review_translation_suggestions_by_entity_ids',
             lambda *_: [None],
         )
         count_function = (

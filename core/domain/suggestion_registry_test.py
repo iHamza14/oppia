@@ -46,7 +46,16 @@ from core.platform import models
 from core.tests import test_utils
 from extensions import domain
 
-from typing import Dict, Final, List, Optional, TypedDict, Union, cast
+from typing import (
+    Dict,
+    Final,
+    List,
+    Optional,
+    Sequence,
+    TypedDict,
+    Union,
+    cast,
+)
 
 MYPY = False
 if MYPY:  # pragma: no cover
@@ -1141,6 +1150,83 @@ class SuggestionEditStateContentUnitTests(test_utils.GenericTestBase):
             suggestion.change_cmd.new_value['html'],
             '<div><p>new suggestion content</p></div>',
         )
+
+    def test_accept_calls_registered_hook(self) -> None:
+        suggestion = suggestion_registry.SuggestionEditStateContent(
+            self.suggestion_dict['suggestion_id'],
+            self.suggestion_dict['target_id'],
+            self.suggestion_dict['target_version_at_submission'],
+            self.suggestion_dict['status'],
+            self.author_id,
+            self.reviewer_id,
+            self.suggestion_dict['change_cmd'],
+            self.suggestion_dict['score_category'],
+            self.suggestion_dict['language_code'],
+            False,
+            self.fake_date,
+            self.fake_date,
+        )
+
+        called_args = []
+
+        def mock_hook(
+            committer_id: str,
+            exp_id: str,
+            change_list: Sequence[exp_domain.ExplorationChange],
+            commit_message: str,
+        ) -> None:
+            called_args.append(
+                (committer_id, exp_id, change_list, commit_message)
+            )
+
+        original_hook = suggestion_registry.get_exploration_update_hook()
+        change_list_swap = self.swap_to_always_return(
+            suggestion,
+            '_get_change_list_for_accepting_edit_state_content_suggestion',
+            value=[suggestion.change_cmd],
+        )
+        try:
+            suggestion_registry.register_exploration_update_hook(mock_hook)
+            with change_list_swap:
+                suggestion.accept('commit message')
+            self.assertEqual(len(called_args), 1)
+            self.assertEqual(called_args[0][0], self.reviewer_id)
+            self.assertEqual(called_args[0][1], 'exp1')
+            self.assertEqual(called_args[0][3], 'commit message')
+        finally:
+            suggestion_registry.register_exploration_update_hook(original_hook)
+
+    def test_accept_raises_error_if_hook_not_registered(self) -> None:
+        suggestion = suggestion_registry.SuggestionEditStateContent(
+            self.suggestion_dict['suggestion_id'],
+            self.suggestion_dict['target_id'],
+            self.suggestion_dict['target_version_at_submission'],
+            self.suggestion_dict['status'],
+            self.author_id,
+            self.reviewer_id,
+            self.suggestion_dict['change_cmd'],
+            self.suggestion_dict['score_category'],
+            self.suggestion_dict['language_code'],
+            False,
+            self.fake_date,
+            self.fake_date,
+        )
+
+        original_hook = suggestion_registry.get_exploration_update_hook()
+        change_list_swap = self.swap_to_always_return(
+            suggestion,
+            '_get_change_list_for_accepting_edit_state_content_suggestion',
+            value=[suggestion.change_cmd],
+        )
+        try:
+            suggestion_registry.register_exploration_update_hook(None)
+            with change_list_swap:
+                with self.assertRaisesRegex(
+                    Exception, 'Exploration update hook is not registered.'
+                ):
+                    suggestion.accept('commit message')
+        finally:
+            suggestion_registry.register_exploration_update_hook(original_hook)
 
 
 class SuggestionTranslateContentUnitTests(test_utils.GenericTestBase):

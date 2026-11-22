@@ -26,7 +26,7 @@ from core.domain import (
     html_cleaner,
     opportunity_domain,
     opportunity_services,
-    skill_services,
+    skill_fetchers,
     suggestion_registry,
     suggestion_services,
     translation_domain,
@@ -598,7 +598,7 @@ class GenerateContributionStatsJob(base_jobs.JobBase):
                 created_date: str. When was the suggestion created.
         """
         with datastore_services.get_ndb_context():
-            for topic in skill_services.get_all_topic_assignments_for_skill(
+            for topic in skill_fetchers.get_all_topic_assignments_for_skill(
                 skill_id
             ):
                 topic_id = topic.topic_id

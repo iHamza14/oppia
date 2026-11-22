@@ -18,8 +18,6 @@
 
 from __future__ import annotations
 
-import logging
-
 from core import feconf, utils
 from core.constants import constants
 from core.domain import image_services, image_validation_services
@@ -443,24 +441,6 @@ def get_static_asset_url(filepath: str) -> str:
     Returns:
         str. The URL of the file.
     """
-    # TODO(1149): Refactor to remove usage of inline imports.
-    # This inline import is required because of the following cicrular
-    # import happening without it:
-    # exp_domain -> html_validation_service -> fs_services ->
-    # platform_parameter_services -> platform_parameter_registry ->
-    # caching_services -> exp_domain.
-    # Caching services should be refactored to eliminate dependency on
-    # multiple domain objects.
-    from core.domain import platform_parameter_list, platform_parameter_services
-
-    # TODO(release-scripts#137): Remove once site URL is verified on all
-    # servers.
-    oppia_site_url = platform_parameter_services.get_platform_parameter_value(
-        platform_parameter_list.ParamName.OPPIA_SITE_URL_FOR_EMAILS.value
-    )
-    logging.info(
-        'Logging OPPIA_SITE_URL_FOR_EMAILS for debugging: %s' % oppia_site_url
-    )
     if constants.EMULATOR_MODE:
         # By using assetsstatic the app returns the requested
         # files in assets folder by that it bypasses

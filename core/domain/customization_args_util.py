@@ -19,13 +19,18 @@
 from __future__ import annotations
 
 from core import schema_utils, utils
-from core.domain import state_domain
 from extensions import domain
 
-from typing import Dict, List, Mapping, Optional, Union
+from typing import Dict, List, Mapping, Optional, Protocol, Sequence, Union
 
 MYPY = False
 if MYPY:  # pragma: no cover
+
+    class SubtitledContentProtocol(Protocol):
+        """Protocol representing SubtitledHtml and SubtitledUnicode objects."""
+
+        content_id: str
+
     AcceptableCustomizationArgsTypes = Union[
         str,
         int,
@@ -33,11 +38,14 @@ if MYPY:  # pragma: no cover
         List[str],
         domain.GraphDict,
         Dict[str, Optional[str]],
-        List[state_domain.SubtitledHtml],
-        List[state_domain.SubtitledHtmlDict],
-        state_domain.SubtitledHtmlDict,
-        state_domain.SubtitledUnicodeDict,
-        state_domain.SubtitledUnicode,
+        # Here we use object because SubtitledHtmlDict and SubtitledUnicodeDict
+        # are TypedDicts that only inherit from Mapping[str, object].
+        Mapping[str, object],
+        # Here we use object because lists of SubtitledHtmlDict and
+        # SubtitledUnicodeDict only inherit from Sequence[Mapping[str, object]].
+        Sequence[Mapping[str, object]],
+        SubtitledContentProtocol,
+        Sequence[SubtitledContentProtocol],
         domain.ImageAndRegionDict,
         domain.CustomizationArgSubtitledUnicodeDefaultDict,
         List[domain.CustomizationArgSubtitledUnicodeDefaultDict],

@@ -34,7 +34,6 @@ from core.domain import (
     skill_fetchers,
     story_domain,
     story_fetchers,
-    suggestion_services,
     taskqueue_services,
     topic_domain,
     topic_fetchers,
@@ -48,10 +47,20 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
 MYPY = False
 if MYPY:  # pragma: no cover
-    from mypy_imports import opportunity_models, user_models
+    from mypy_imports import (
+        opportunity_models,
+        suggestion_models,
+        user_models,
+    )
 
-opportunity_models, user_models = models.Registry.import_models(
-    [models.Names.OPPORTUNITY, models.Names.USER]
+(opportunity_models, suggestion_models, user_models) = (
+    models.Registry.import_models(
+        [
+            models.Names.OPPORTUNITY,
+            models.Names.SUGGESTION,
+            models.Names.USER,
+        ]
+    )
 )
 
 # NOTE TO DEVELOPERS: The functions:
@@ -1809,14 +1818,12 @@ def _build_entity_id_to_translation_suggestion_in_review_count(
         translation suggestions currently in review.
     """
     entity_id_to_in_review_count: Dict[str, int] = collections.defaultdict(int)
-    suggestions_in_review = (
-        suggestion_services.get_translation_suggestions_in_review_by_entity_ids(
-            entity_ids, language_code
-        )
+    suggestion_models_in_review = suggestion_models.GeneralSuggestionModel.get_in_review_translation_suggestions_by_entity_ids(
+        entity_ids, language_code
     )
-    for suggestion in suggestions_in_review:
-        if suggestion is not None:
-            entity_id_to_in_review_count[suggestion.target_id] += 1
+    for suggestion_model in suggestion_models_in_review:
+        if suggestion_model is not None:
+            entity_id_to_in_review_count[suggestion_model.target_id] += 1
     return entity_id_to_in_review_count
 
 

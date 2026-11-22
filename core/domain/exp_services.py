@@ -60,6 +60,7 @@ from core.domain import (
     state_domain,
     stats_domain,
     stats_services,
+    suggestion_registry,
     suggestion_services,
     taskqueue_services,
     translation_services,
@@ -384,181 +385,6 @@ def export_states_to_yaml(
             exploration.states[state].to_dict(), width=width
         )
     return exploration_dict
-
-
-def get_content_updates_from_cmd_edit_state_property_change(
-    change: exp_domain.ExplorationChange,
-) -> Dict[str, str]:
-    """Extracts content ids and content values from CMD_EDIT_STATE_PROPERTY.
-
-    Args:
-        change: ExplorationChange. The exploration change object.
-
-    Returns:
-        dict(str, str). A mapping from content_id to content html.
-    """
-    content_id_to_content_value: Dict[str, str] = {}
-
-    if change.cmd != exp_domain.CMD_EDIT_STATE_PROPERTY:
-        return content_id_to_content_value
-
-    # Here we use type Any because BaseChange dynamically assigns values
-    # at runtime that can differ from the statically declared subtype.
-    new_value: Any = change.new_value
-    if new_value is None:
-        return content_id_to_content_value
-
-    def add_subtitled_html_from_dict(
-        subtitled_html: state_domain.SubtitledHtmlDict,
-    ) -> None:
-        """Adds a mapping from a subtitled html dict, if valid."""
-        conten_id = subtitled_html.get('content_id')
-
-        content_value = None
-        if subtitled_html.get('html'):
-            content_value = subtitled_html.get('html')
-
-        if isinstance(conten_id, str) and isinstance(content_value, str):
-            content_id_to_content_value[conten_id] = content_value
-
-    def add_subtitled_unicode_from_dict(
-        subtitled_unicode: state_domain.SubtitledUnicodeDict,
-    ) -> None:
-        """Adds a mapping from a subtitled unicode dict, if valid."""
-        conten_id = subtitled_unicode.get('content_id')
-
-        content_value = None
-        if subtitled_unicode.get('unicode_str'):
-            content_value = subtitled_unicode.get('unicode_str')
-
-        if isinstance(conten_id, str) and isinstance(content_value, str):
-            content_id_to_content_value[conten_id] = content_value
-
-    if change.property_name == exp_domain.STATE_PROPERTY_CONTENT:
-        # Here we use cast because this 'if' condition forces change to have
-        # type EditExpStatePropertyContentCmd.
-        edit_content_cmd = cast(
-            exp_domain.EditExpStatePropertyContentCmd, change
-        )
-        add_subtitled_html_from_dict(edit_content_cmd.new_value)
-    elif (
-        change.property_name
-        == exp_domain.STATE_PROPERTY_INTERACTION_DEFAULT_OUTCOME
-    ):
-        # Here we use cast because this 'elif' condition forces change to have
-        # type EditExpStatePropertyInteractionDefaultOutcomeCmd.
-        edit_interaction_default_outcome_cmd = cast(
-            exp_domain.EditExpStatePropertyInteractionDefaultOutcomeCmd,
-            change,
-        )
-
-        add_subtitled_html_from_dict(
-            edit_interaction_default_outcome_cmd.new_value['feedback']
-        )
-    elif (
-        change.property_name
-        == exp_domain.STATE_PROPERTY_INTERACTION_ANSWER_GROUPS
-    ):
-        # Here we use cast because this 'elif' condition forces change to have
-        # type EditExpStatePropertyInteractionAnswerGroupsCmd.
-        edit_interaction_answer_group_cmd = cast(
-            exp_domain.EditExpStatePropertyInteractionAnswerGroupsCmd,
-            change,
-        )
-        answer_group_dicts = edit_interaction_answer_group_cmd.new_value or []
-
-        for answer_group_dict in answer_group_dicts:
-            add_subtitled_html_from_dict(
-                answer_group_dict['outcome']['feedback']
-            )
-    elif change.property_name == exp_domain.STATE_PROPERTY_INTERACTION_HINTS:
-        # Here we use cast because this 'elif' condition forces change to have
-        # type EditExpStatePropertyInteractionHintsCmd.
-        edit_state_interaction_hints_cmd = cast(
-            exp_domain.EditExpStatePropertyInteractionHintsCmd,
-            change,
-        )
-        hint_dicts = edit_state_interaction_hints_cmd.new_value or []
-
-        for hint_dict in hint_dicts:
-            add_subtitled_html_from_dict(hint_dict['hint_content'])
-    elif change.property_name == exp_domain.STATE_PROPERTY_INTERACTION_SOLUTION:
-        # Here we use cast because this 'elif' condition forces change to have
-        # type EditExpStatePropertyInteractionSolutionCmd.
-        edit_interaction_solution_cmd = cast(
-            exp_domain.EditExpStatePropertyInteractionSolutionCmd,
-            change,
-        )
-        add_subtitled_html_from_dict(
-            edit_interaction_solution_cmd.new_value['explanation']
-        )
-    elif (
-        change.property_name == exp_domain.STATE_PROPERTY_INTERACTION_CUST_ARGS
-    ):
-        # Here we use cast because this 'elif' condition forces change to have
-        # type EditExpStatePropertyInteractionCustArgsCmd.
-        edit_interaction_cust_arg_cmd = cast(
-            exp_domain.EditExpStatePropertyInteractionCustArgsCmd,
-            change,
-        )
-        customization_arg_dicts = edit_interaction_cust_arg_cmd.new_value or {}
-        for cust_arg_dict in customization_arg_dicts.values():
-            for cust_arg_value in cust_arg_dict.values():
-                # Each of these conversions are intended to be run on every
-                # single item.
-                try:
-                    # Here we use cast because we are narrowing down the type
-                    # UnionOfCustomizationArgsDictValues dict to SubtitledHtmlDict.
-                    cust_arg_subtitled_html_dict = cast(
-                        state_domain.SubtitledHtmlDict, cust_arg_value
-                    )
-                    add_subtitled_html_from_dict(cust_arg_subtitled_html_dict)
-                except Exception:
-                    pass
-
-                try:
-                    # Here we use cast because we are narrowing down the type
-                    # UnionOfCustomizationArgsDictValues dict to SubtitledUnicodeDict.
-                    cust_arg_subtitled_unicode_dict = cast(
-                        state_domain.SubtitledUnicodeDict, cust_arg_value
-                    )
-                    add_subtitled_unicode_from_dict(
-                        cust_arg_subtitled_unicode_dict
-                    )
-                except Exception:
-                    pass
-
-                if isinstance(cust_arg_value, list):
-                    for item in cust_arg_value:
-                        # Each of these conversions are intended to be run on
-                        # every single item.
-                        try:
-                            # Here we use cast because we are narrowing down the
-                            # type UnionOfCustomizationArgsDictValues dict to
-                            # SubtitledHtmlDict.
-                            item_subtitled_html_dict = cast(
-                                state_domain.SubtitledHtmlDict, item
-                            )
-                            add_subtitled_html_from_dict(
-                                item_subtitled_html_dict
-                            )
-                        except Exception:
-                            pass
-
-                        try:
-                            # Here we use cast because we are narrowing down the
-                            # type UnionOfCustomizationArgsDictValues dict to
-                            # SubtitledUnicodeDict.
-                            item_subtitled_unicode_dict = cast(
-                                state_domain.SubtitledUnicodeDict, item
-                            )
-                            add_subtitled_unicode_from_dict(
-                                item_subtitled_unicode_dict
-                            )
-                        except Exception:
-                            pass
-
-    return content_id_to_content_value
 
 
 # Repository SAVE and DELETE methods.
@@ -4406,3 +4232,12 @@ def to_exploration_dict_for_android(
 
     exploration_dict_deepcopy = copy.deepcopy(exploration_dict)
     return exploration_dict_deepcopy
+
+
+rights_manager.register_activity_summary_update_hook(
+    constants.ACTIVITY_TYPE_EXPLORATION,
+    lambda activity_rights: regenerate_exploration_and_contributors_summaries(
+        activity_rights.id
+    ),
+)
+suggestion_registry.register_exploration_update_hook(update_exploration)

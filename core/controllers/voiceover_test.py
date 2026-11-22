@@ -39,6 +39,7 @@ from core.domain import (
     user_services,
     voiceover_cloud_task_services,
     voiceover_domain,
+    voiceover_regeneration_services,
     voiceover_services,
 )
 from core.tests import test_utils
@@ -775,7 +776,7 @@ class AutomaticVoiceoverRegenerationIntegrationTests(
                 child_task_run_id = cloud_run.task_run_id
 
         assert child_task_run_id is not None
-        voiceover_services.regenerate_voiceovers_for_batch_contents(
+        voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
             self.exploration_id, task_run_id, child_task_run_id
         )
 
@@ -901,7 +902,7 @@ class AutomaticVoiceoverRegenerationIntegrationTests(
                 child_task_run_id = cloud_run.task_run_id
 
         assert child_task_run_id is not None
-        voiceover_services.regenerate_voiceovers_for_batch_contents(
+        voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
             self.exploration_id, task_run_id, child_task_run_id
         )
 
@@ -1098,7 +1099,7 @@ class AutomaticVoiceoverRegenerationIntegrationTests(
                 child_task_run_ids.append(cloud_run.task_run_id)
 
         for child_task_run_id in child_task_run_ids:
-            voiceover_services.regenerate_voiceovers_for_batch_contents(
+            voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
                 self.exploration_id, task_run_id, child_task_run_id
             )
 
@@ -1215,7 +1216,7 @@ class AutomaticVoiceoverRegenerationIntegrationTests(
         assert second_iter_parent_task_run_id is not None
 
         for child_task_run_id in second_iter_child_task_run_ids:
-            voiceover_services.regenerate_voiceovers_for_batch_contents(
+            voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
                 self.exploration_id,
                 second_iter_parent_task_run_id,
                 child_task_run_id,
@@ -1355,7 +1356,7 @@ class AutomaticVoiceoverRegenerationIntegrationTests(
             ):
                 child_task_run_ids.append(cloud_run.task_run_id)
         for child_task_run_id in child_task_run_ids:
-            voiceover_services.regenerate_voiceovers_for_batch_contents(
+            voiceover_regeneration_services.regenerate_voiceovers_for_batch_contents(
                 self.exploration_id,
                 cloud_task_runs[1].task_run_id,
                 child_task_run_id,

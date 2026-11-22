@@ -38,7 +38,7 @@ from core.domain import (
     subscription_services,
     suggestion_registry,
     taskqueue_services,
-    topic_services,
+    topic_fetchers,
     user_services,
 )
 from core.platform import models
@@ -1243,7 +1243,7 @@ def _get_classroom_feedback_recipient_email(
         str. The email address configured to receive feedback for the
         corresponding classroom.
     """
-    topic_ids = topic_services.get_topic_ids_for_exploration_id(exploration_id)
+    topic_ids = topic_fetchers.get_topic_ids_for_exploration_id(exploration_id)
 
     for topic_id in topic_ids:
         classroom = classroom_config_services.get_classroom_by_topic_id(

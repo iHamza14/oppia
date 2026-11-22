@@ -28,7 +28,6 @@ from core.domain import (
     event_services,
     exp_domain,
     exp_fetchers,
-    feedback_services,
     stats_services,
     taskqueue_services,
     user_services,
@@ -40,13 +39,12 @@ MYPY = False
 if MYPY:  # pragma: no cover
     from mypy_imports import (
         datastore_services,
-        feedback_models,
         stats_models,
         user_models,
     )
 
-(stats_models, feedback_models, user_models) = models.Registry.import_models(
-    [models.Names.STATISTICS, models.Names.FEEDBACK, models.Names.USER]
+(stats_models, user_models) = models.Registry.import_models(
+    [models.Names.STATISTICS, models.Names.USER]
 )
 
 datastore_services = models.Registry.import_datastore_services()
@@ -335,50 +333,6 @@ class LeaveForRefresherExpEventHandlerTests(test_utils.GenericTestBase):
         self.assertEqual(model.time_spent_in_state_secs, 2.0)
 
 
-class FeedbackThreadCreatedEventHandlerTests(test_utils.GenericTestBase):
-
-    def test_new_feedback_thread_creation_events(self) -> None:
-
-        exp_id = 'exp_id'
-
-        event_services.FeedbackThreadCreatedEventHandler.record(exp_id)
-        thread = feedback_services.get_thread_analytics(exp_id)
-        self.assertEqual(thread.id, exp_id)
-        self.assertEqual(thread.num_open_threads, 1)
-        self.assertEqual(thread.num_total_threads, 1)
-
-        event_services.FeedbackThreadCreatedEventHandler.record(exp_id)
-        thread = feedback_services.get_thread_analytics(exp_id)
-        self.assertEqual(thread.id, exp_id)
-        self.assertEqual(thread.num_open_threads, 2)
-        self.assertEqual(thread.num_total_threads, 2)
-
-
-class FeedbackThreadStatusChangedEventHandlerTests(test_utils.GenericTestBase):
-
-    def test_recording_reopening_feedback_thread_events(self) -> None:
-
-        exp_id = 'exp_id'
-
-        # Changing Status from closed to open.
-        event_services.FeedbackThreadStatusChangedEventHandler.record(
-            exp_id, '', feedback_models.STATUS_CHOICES_OPEN
-        )
-
-        thread = feedback_services.get_thread_analytics(exp_id)
-        self.assertEqual(thread.id, exp_id)
-        self.assertEqual(thread.num_open_threads, 1)
-
-        # Changing Status from open to closed.
-        event_services.FeedbackThreadStatusChangedEventHandler.record(
-            exp_id, feedback_models.STATUS_CHOICES_OPEN, ''
-        )
-
-        thread = feedback_services.get_thread_analytics(exp_id)
-        self.assertEqual(thread.id, exp_id)
-        self.assertEqual(thread.num_open_threads, 0)
-
-
 class TestEventHandler(event_services.BaseEventHandler):
     """Mock event class for processing events of type 'test_event'."""
 
@@ -587,8 +541,6 @@ class EventHandlerNameTests(test_utils.GenericTestBase):
             'StateHitEventHandler',
             'StateCompleteEventHandler',
             'LeaveForRefresherExpEventHandler',
-            'FeedbackThreadCreatedEventHandler',
-            'FeedbackThreadStatusChangedEventHandler',
         ]
 
         self.assertEqual(

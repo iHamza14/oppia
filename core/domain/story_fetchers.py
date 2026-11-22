@@ -25,7 +25,7 @@ from __future__ import annotations
 import copy
 import itertools
 
-from core import feconf
+from core import feconf, utils
 from core.constants import constants
 from core.domain import (
     caching_services,
@@ -38,7 +38,16 @@ from core.domain import (
 )
 from core.platform import models
 
-from typing import Dict, List, Literal, Optional, Sequence, Tuple, overload
+from typing import (
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    TypedDict,
+    overload,
+)
 
 MYPY = False
 if MYPY:  # pragma: no cover
@@ -771,3 +780,82 @@ def get_all_arcs_with_stories_for_topic(
         if story is not None:
             return [(story, arc) for arc in story.story_contents.arcs]
     return []
+
+
+class CannonicalStoryDict(TypedDict):
+    """Dictionary that represents cannonical stories."""
+
+    id: str
+    title: str
+    description: str
+    node_titles: List[str]
+    thumbnail_bg_color: Optional[str]
+    thumbnail_filename: Optional[str]
+    url_fragment: str
+    topic_url_fragment: str
+    classroom_url_fragment: Optional[str]
+    classroom_name: Optional[str]
+    story_is_published: bool
+    completed_node_titles: List[str]
+    all_node_dicts: List[story_domain.StoryNodeDict]
+
+
+def get_canonical_story_dicts(
+    user_id: str, topic: topic_domain.Topic
+) -> List[CannonicalStoryDict]:
+    """Returns a list of canonical story dicts in the topic.
+
+    Args:
+        user_id: str. The ID of the user.
+        topic: Topic. The topic domain object.
+
+    Returns:
+        list(dict). A list of canonical story dicts in the given topic.
+    """
+    canonical_story_ids: List[str] = topic.get_canonical_story_ids(
+        include_only_published=True
+    )
+    canonical_story_summaries: List[story_domain.StorySummary] = [
+        get_story_summary_by_id(canonical_story_id)
+        for canonical_story_id in canonical_story_ids
+    ]
+    canonical_story_dicts = []
+    for story_summary in canonical_story_summaries:
+        pending_and_all_nodes_in_story = get_pending_and_all_nodes_in_story(
+            user_id, story_summary.id
+        )
+        all_nodes = pending_and_all_nodes_in_story['all_nodes']
+        pending_nodes = pending_and_all_nodes_in_story['pending_nodes']
+        pending_node_titles = [node.title for node in pending_nodes]
+        completed_node_titles = utils.compute_list_difference(
+            story_summary.node_titles, pending_node_titles
+        )
+        # Here we use MyPy ignore because the return type of
+        # 'to_human_readable_dict()' method is HumanReadableStorySummaryDict
+        # which do not contain topic_url_fragment, story_is_published and
+        # other keys. To overcome this missing keys issue, we have defined
+        # a CannonicalStoryDict and assigned it to the `story_summary_dict`.
+        # So, due to this a conflict in type assignment is raised which cause
+        # MyPy to throw `Incompatible types in assignment` error. Thus, to
+        # avoid the error, we used ignore here.
+        story_summary_dict: CannonicalStoryDict = (
+            story_summary.to_human_readable_dict()  # type: ignore[assignment]
+        )
+        story_summary_dict['node_titles'] = [node.title for node in all_nodes]
+        story_summary_dict['topic_url_fragment'] = topic.url_fragment
+        story_summary_dict['classroom_url_fragment'] = (
+            classroom_config_services.get_classroom_url_fragment_for_topic_id(
+                topic.id
+            )
+        )
+        story_summary_dict['classroom_name'] = (
+            classroom_config_services.get_classroom_name_for_topic_id(topic.id)
+        )
+        story_summary_dict['story_is_published'] = True
+        story_summary_dict['completed_node_titles'] = completed_node_titles
+        story_summary_dict['all_node_dicts'] = [
+            node.to_dict() for node in all_nodes
+        ]
+        canonical_story_dicts.append(story_summary_dict)
+
+    return canonical_story_dicts

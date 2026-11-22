@@ -23,7 +23,7 @@ import logging
 
 from core import feconf, utils
 from core.constants import constants
-from core.domain import fs_services, rte_component_registry
+from core.domain import rte_component_registry
 from extensions.objects.models import objects
 from extensions.rich_text_components import components
 
@@ -658,39 +658,6 @@ def validate_customization_args_in_tag(tag: bs4.element.Tag) -> Iterator[str]:
                     yield from validate_customization_args_in_tag(component_tag)
     except Exception as e:
         yield str(e)
-
-
-def validate_svg_filenames_in_math_rich_text(
-    entity_type: str, entity_id: str, html_string: str
-) -> List[str]:
-    """Validates the SVG filenames for each math rich-text components and
-    returns a list of all invalid math tags in the given HTML.
-
-    Args:
-        entity_type: str. The type of the entity.
-        entity_id: str. The ID of the entity.
-        html_string: str. The HTML string.
-
-    Returns:
-        list(str). A list of invalid math tags in the HTML string.
-    """
-    soup = bs4.BeautifulSoup(html_string, 'html.parser')
-    error_list = []
-    for math_tag in soup.findAll(name='oppia-noninteractive-math'):
-        math_content_dict = json.loads(
-            utils.unescape_html(math_tag['math_content-with-value'])
-        )
-        svg_filename = objects.UnicodeString.normalize(
-            math_content_dict['svg_filename']
-        )
-        if svg_filename == '':
-            error_list.append(str(math_tag))
-        else:
-            fs = fs_services.GcsFileSystem(entity_type, entity_id)
-            filepath = 'image/%s' % svg_filename
-            if not fs.isfile(filepath):
-                error_list.append(str(math_tag))
-    return error_list
 
 
 def validate_math_content_attribute_in_html(

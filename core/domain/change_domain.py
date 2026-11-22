@@ -22,7 +22,7 @@ import copy
 
 from core import feconf, utils
 
-from typing import Any, Dict, List, Mapping, Union, cast
+from typing import Any, Dict, List, Mapping, Sequence, Union, cast
 
 MYPY = False
 if MYPY:  # pragma: no cover
@@ -31,8 +31,6 @@ if MYPY:  # pragma: no cover
     # at runtime.
     from core.domain import (
         param_domain,
-        platform_parameter_domain,
-        question_domain,
         state_domain,
         translation_domain,
     )
@@ -56,15 +54,19 @@ if MYPY:  # pragma: no cover
         # Here we use type Any because we want to allow differently nested dicts
         # being accepted by BaseChange.
         Dict[str, Any],
+        # Here we use object because TypedDicts across domain modules only
+        # inherit from Mapping[str, object].
+        Mapping[str, object],
         # Here we use type Any because we want to allow list of differently
         # nested dicts being accepted by BaseChange.
         List[Dict[str, Any]],
+        # Here we use object because lists of TypedDicts across domain modules
+        # only inherit from Sequence[Mapping[str, object]].
+        Sequence[Mapping[str, object]],
         List[param_domain.ParamChangeDict],
         List[state_domain.AnswerGroupDict],
         List[state_domain.HintDict],
         translation_domain.WrittenTranslationsDict,
-        List[platform_parameter_domain.PlatformParameterRuleDict],
-        question_domain.QuestionDict,
         state_domain.AnswerGroupDict,
         state_domain.SubtitledHtmlDict,
         state_domain.SolutionDict,
@@ -72,7 +74,6 @@ if MYPY:  # pragma: no cover
         state_domain.OutcomeDict,
         state_domain.RecordedVoiceoversDict,
         feconf.TranslatedContentDict,
-        question_domain.QuestionSuggestionChangeDict,
     ]
 
 

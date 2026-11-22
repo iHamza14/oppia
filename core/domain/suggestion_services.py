@@ -39,7 +39,6 @@ from core.domain import (
     question_domain,
     rte_component_registry,
     skill_fetchers,
-    skill_services,
     state_domain,
     suggestion_registry,
     taskqueue_services,
@@ -3907,7 +3906,7 @@ def update_question_contribution_stats_at_submission(
         suggestion: Suggestion. The suggestion domain object that is being
             submitted.
     """
-    for topic in skill_services.get_all_topic_assignments_for_skill(
+    for topic in skill_fetchers.get_all_topic_assignments_for_skill(
         suggestion.target_id
     ):
         question_contribution_stat_model = (
@@ -3940,7 +3939,7 @@ def update_question_contribution_stats_at_submission(
         )
         _update_question_contribution_stats_models([question_contribution_stat])
 
-    for topic in skill_services.get_all_topic_assignments_for_skill(
+    for topic in skill_fetchers.get_all_topic_assignments_for_skill(
         suggestion.target_id
     ):
         question_submitter_total_stat_model: Optional[
@@ -4019,7 +4018,7 @@ def update_question_contribution_stats_at_review(
         accepted_questions_without_reviewer_edits_count += 1
         recent_review_outcomes = [suggestion_models.REVIEW_OUTCOME_ACCEPTED]
 
-    for topic in skill_services.get_all_topic_assignments_for_skill(
+    for topic in skill_fetchers.get_all_topic_assignments_for_skill(
         suggestion.target_id
     ):
         question_contribution_stat_model = (
@@ -4056,7 +4055,7 @@ def update_question_contribution_stats_at_review(
             ) += 1
         _update_question_contribution_stats_models([question_contribution_stat])
 
-    for topic in skill_services.get_all_topic_assignments_for_skill(
+    for topic in skill_fetchers.get_all_topic_assignments_for_skill(
         suggestion.target_id
     ):
         question_submitter_total_stat_model: Optional[
@@ -4119,7 +4118,7 @@ def update_question_review_stats(
         suggestion.status == suggestion_models.STATUS_ACCEPTED
     )
 
-    for topic in skill_services.get_all_topic_assignments_for_skill(
+    for topic in skill_fetchers.get_all_topic_assignments_for_skill(
         suggestion.target_id
     ):
         question_review_stat_model = (
@@ -4166,7 +4165,7 @@ def update_question_review_stats(
         )
         _update_question_review_stats_models([question_review_stat])
 
-    for topic in skill_services.get_all_topic_assignments_for_skill(
+    for topic in skill_fetchers.get_all_topic_assignments_for_skill(
         suggestion.target_id
     ):
         question_reviewer_total_stat_model: Optional[

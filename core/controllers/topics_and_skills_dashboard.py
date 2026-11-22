@@ -253,7 +253,7 @@ class TopicAssignmentsHandler(base.BaseHandler[Dict[str, str], Dict[str, str]]):
         Args:
             skill_id: str. The skill ID.
         """
-        topic_assignments = skill_services.get_all_topic_assignments_for_skill(
+        topic_assignments = skill_fetchers.get_all_topic_assignments_for_skill(
             skill_id
         )
         topic_assignment_dicts = [

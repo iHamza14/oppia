@@ -263,8 +263,6 @@ def create_messages(
         Exception. Thread_ids must be distinct.
         Exception. One or more GeneralFeedbackThreadModel entities not found.
     """
-    from core.domain import event_services
-
     # Check that the thread_ids are distinct.
     if len(set(thread_ids)) != len(thread_ids):
         raise Exception(
@@ -335,12 +333,10 @@ def create_messages(
             if thread_model.entity_type == feconf.ENTITY_TYPE_EXPLORATION:
                 if message_model.message_id == 0:
                     # New thread.
-                    event_services.FeedbackThreadCreatedEventHandler.record(
-                        thread_model.entity_id
-                    )
+                    handle_new_thread_created(thread_model.entity_id)
                 else:
                     # Thread status changed.
-                    event_services.FeedbackThreadStatusChangedEventHandler.record(
+                    handle_thread_status_changed(
                         thread_model.entity_id,
                         thread_model.status,
                         updated_status,
